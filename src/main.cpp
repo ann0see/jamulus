@@ -85,6 +85,7 @@ int main ( int argc, char** argv )
     QString      strRecordingDirName         = "";
     QString      strCentralServer            = "";
     QString      strServerInfo               = "";
+    QString      strServerPublicIP           = "";
     QString      strServerListFilter         = "";
     QString      strEduModePassword          = "";
     QString      strWelcomeMessage           = "";
@@ -413,6 +414,20 @@ int main ( int argc, char** argv )
         }
 
 
+        // Server Public IP --------------------------------------------------
+        if ( GetStringArgument ( argc,
+                                 argv,
+                                 i,
+                                 "--serverpublicip", // no short form
+                                 "--serverpublicip",
+                                 strArgument ) )
+        {
+            strServerPublicIP = strArgument;
+            CommandLineOptions << "--serverpublicip";
+            continue;
+        }
+
+
         // Server info ---------------------------------------------------------
         if ( GetStringArgument ( argc,
                                  argv,
@@ -726,6 +741,7 @@ int main ( int argc, char** argv )
                              strHTMLStatusFileName,
                              strCentralServer,
                              strServerInfo,
+                             strServerPublicIP,
                              strServerListFilter,
                              strWelcomeMessage,
                              strRecordingDirName,
@@ -849,6 +865,9 @@ QString UsageArguments ( char **argv )
         "  -u, --numchannels     maximum number of channels\n"
         "  -w, --welcomemessage  welcome message on connect\n"
         "  -z, --startminimized  start minimizied\n"
+        "      --serverpublicip  specify your public IP address when\n"
+        "                        running a slave and your own central server\n"
+        "                        behind the same NAT\n"
         "\nClient only:\n"
         "  -M, --mutestream      starts the application in muted state\n"
         "      --mutemyown       mute me in my personal mix (headless only)\n"
