@@ -18,7 +18,7 @@ It is based on the [Qt framework](https://www.qt.io) and uses the [OPUS](http://
 
 Only in the unofficial version, when Jamulus is started with `--edumodepassword <myPassword>`.
 All commands are sent to the server via chat. Type e.g. "/c/ls" and get a feedback from the server.
-The commands only work if a user authenticates with a„secret word which is transmitted in plain text. It is probably possible to bypass all protections with greater effort.
+The commands only work if a user authenticates with a "secret" word which is transmitted in plain text. It is probably possible to bypass all protections with greater effort.
 Available commands:
 
 
