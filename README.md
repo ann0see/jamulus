@@ -21,9 +21,9 @@ All commands are sent to the server via chat. Type e.g. "/c/ls" and get a feedba
 The commands only work if a user authenticates with a "secret" word which is transmitted in plain text. It is probably possible to bypass all protections with greater effort.
 Available commands:
 
-
-`/c/<myPassword>` | The user who sent this chat message will be made an admin
+Command | Description
 -- | --
+`/c/<myPassword>` | The user who sent this chat message will be made an admin
 `/c/ls` | ls = list: Prints all logged in users with their ID, name and 			status. The ID is needed e.g. to block a person.
 `/c/bl 0` | Bl = block: Blocks audio from the person with ID 0 being mixed 			into other mixes except from his/her own one. Also doesn‘t mix 			his/her signal in other mixes.   /c/bl 1 blocks person 1 etc.
 `/c/ubl 0` | Ubl = unblock: Gegenteil zu /c/bl 0. opposite of /c/bl 0. Enables 			the user with ID 0, so they can hear the others and be heard.
