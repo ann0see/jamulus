@@ -24,12 +24,12 @@ Available commands:
 Command | Description
 -- | --
 `/c/<myPassword>` | The user who sent this chat message will be made an admin
-`/c/ls` | ls = list: Prints all logged in users with their ID, name and 			status. The ID is needed e.g. to block a person.
-`/c/bl 0` | Bl = block: Blocks audio from the person with ID 0 being mixed 			into other mixes except from his/her own one. Also doesn‘t mix 			his/her signal in other mixes.   /c/bl 1 blocks person 1 etc.
-`/c/ubl 0` | Ubl = unblock: Gegenteil zu /c/bl 0. opposite of /c/bl 0. Enables 			the user with ID 0, so they can hear the others and be heard.
+`/c/ls` | ls = list: Prints all logged in users with their ID, name and status. The ID is needed e.g. to block a person.
+`/c/bl 0` | Bl = block: Blocks audio from the person with ID 0 being mixed into other mixes except from his/her own one. Also doesn‘t mix his/her signal in other mixes. /c/bl 1 blocks person 1 etc.
+`/c/ubl 0` | Ubl = unblock: Opposite of /c/bl 0. Enables the user with ID 0, so they can hear the others and be heard.
 `/c/disableChat` | Disables chat for all users
 `/c/enableChat` | Enables chat for all users
-`/c/enableWaitingRoom` | Enable waiting room feature (active by default). New users will be 			blocked and will not hear others. Also others will not hear the 			newly logged in user
+`/c/enableWaitingRoom` | Enable waiting room feature (active by default). New users will be blocked and will not hear others. Also others will not hear the newly logged in user
 `/c/disableWaitingRoom` | All users will be enabled (can be heared and can hear others)
 
 
