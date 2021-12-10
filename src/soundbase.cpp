@@ -166,31 +166,39 @@ QString CSoundBase::SetDev ( const QString strDevName )
         if ( !vsErrorList.isEmpty() )
         {
             // create error message with all details
-            QString sErrorMessage = "<b>" + QString ( tr ( "No usable %1 audio device found." ) ).arg ( strSystemDriverTechniqueName ) +
-                                    "</b><br><br>" + tr ( "These are all the available drivers with error messages:" ) + "<ul>";
-
-            for ( int i = 0; i < lNumDevs; i++ )
+            QString sErrorMessage = "<b>" + QString ( tr ( "No usable %1 audio device found." ) ).arg ( strSystemDriverTechniqueName ) + "</b>";
+            if ( lNumDevs > 1 )
             {
-                sErrorMessage += "<li><b>" + GetDeviceName ( i ) + "</b>: " + vsErrorList[i] + "</li>";
-            }
-            sErrorMessage += "</ul>";
+                // only output multiple messages if more then one are necessary.
+                sErrorMessage += "<br><br>" + tr ( "These are all the available drivers with error messages:" ) + "<ul>";
+                for ( int i = 0; i < lNumDevs; i++ )
+                {
+                    sErrorMessage += "<li><b>" + GetDeviceName ( i ) + "</b>: " + vsErrorList[i] + "</li>";
+                }
+                sErrorMessage += "</ul>";
+           }
+           else
+           {
+                sErrorMessage += "<b>" + GetDeviceName ( 0 ) + "</b>: " + vsErrorList[0] ;
+           }
+
 
 #ifdef _WIN32
-            // to be able to access the ASIO driver setup for changing, e.g., the sample rate, we
-            // offer the user under Windows that we open the driver setups of all registered
-            // ASIO drivers
-            sErrorMessage += "<br/>" + tr ( "Do you want to open the ASIO driver setup to try changing your configuration to a working state?" );
+           // to be able to access the ASIO driver setup for changing, e.g., the sample rate, we
+           // offer the user under Windows that we open the driver setups of all registered
+           // ASIO drivers
+           sErrorMessage += "<br/>" + tr ( "You might be able to fix this error by changing settings of your ASIO driver. Do you want to open these settings now?" );
 
-            if ( QMessageBox::Yes == QMessageBox::information ( nullptr, APP_NAME, sErrorMessage, QMessageBox::Yes | QMessageBox::No ) )
-            {
-                LoadAndInitializeFirstValidDriver ( true );
-            }
+           if ( QMessageBox::Yes == QMessageBox::information ( nullptr, APP_NAME, sErrorMessage, QMessageBox::Yes | QMessageBox::No ) )
+           {
+               LoadAndInitializeFirstValidDriver ( true );
+           }
 
-            sErrorMessage = QString ( tr ( "Can't start %1. Please restart %1 and check/reconfigure your audio settings." ) ).arg ( APP_NAME );
+           sErrorMessage = QString ( tr ( "Can't start %1. Please restart %1 and check/reconfigure your audio settings." ) ).arg ( APP_NAME );
 #endif
 
-            throw CGenErr ( sErrorMessage );
-        }
+           throw CGenErr ( sErrorMessage );
+       }
     }
 
     return strReturn;
