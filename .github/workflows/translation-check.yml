@@ -2,9 +2,7 @@ name: Verify translations
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'src/res/translation/'
+  push: "autobuild/*"
 
 jobs:
   translation-check:
