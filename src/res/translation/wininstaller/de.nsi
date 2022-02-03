@@ -6,7 +6,6 @@ LangString DESKTOP_SET_SHORTCUT ${LANG_GERMAN} \
 LangString INVALID_FOLDER_MSG ${LANG_GERMAN} \
     "Das Zielverzeichnis existiert schon. Bitte wähle ein anderes Zielverzeichnis aus."
 
-LangString RUNNING_APP_MSG $ANG_GERMAN} \
     "${APP_NAME} läuft noch. Bitte schließe das Programm und starte die Installation erneut."
 
 LangString OLD_WRONG_VER_FOUND ${LANG_GERMAN} \
