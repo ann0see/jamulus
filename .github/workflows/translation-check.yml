@@ -2,8 +2,9 @@ name: Verify translations
 
 on:
   workflow_dispatch:
-  push: "autobuild/*"
-
+  push:
+      branches:
+      - "autobuild/*"
 jobs:
   translation-check:
     name: Verify translation
