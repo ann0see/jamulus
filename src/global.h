@@ -278,9 +278,8 @@ LED bar:      lbr
 #define MAX_LEN_VERSION_TEXT        30
 
 // define Settings tab indexes
-#define SETTING_TAB_USER    0
-#define SETTING_TAB_AUDIO   1
-#define SETTING_TAB_NETWORK 2
+#define SETTING_TAB_USER          0
+#define SETTING_TAB_AUDIO_NETWORK 1
 
 // common tool tip bottom line text
 #define TOOLTIP_COM_END_TEXT \
@@ -373,6 +372,55 @@ public:
 //                                 (Still containing these functions)
 
 extern QString UsageArguments ( QString appPath );
+
+//============================================================================
+// CMsgBoxes class:
+//  Use this static class to show basic Error, Warning and Info messageboxes
+//  For own created message boxes you should still use
+//    CMsgBoxes::MainForm() and CMsgBoxes::MainFormName()
+//============================================================================
+#ifndef HEADLESS
+#    include <QMessageBox>
+#endif
+
+class CMsgBoxes
+{
+protected:
+    static QDialog* pMainForm;
+    static QString  strMainFormName;
+
+public:
+    static void init ( QDialog* theMainForm, QString theMainFormName )
+    {
+        pMainForm       = theMainForm;
+        strMainFormName = theMainFormName;
+    }
+
+    static QDialog*       MainForm() { return pMainForm; }
+    static const QString& MainFormName() { return strMainFormName; }
+
+    // Message boxes:
+    static void ShowError ( QString strError )
+    {
+#ifndef HEADLESS
+        QMessageBox::critical ( pMainForm, strMainFormName + ": " + QObject::tr ( "Error" ), strError, QObject::tr ( "Ok" ), nullptr );
+#endif
+    }
+
+    static void ShowWarning ( QString strWarning )
+    {
+#ifndef HEADLESS
+        QMessageBox::warning ( pMainForm, strMainFormName + ": " + QObject::tr ( "Warning" ), strWarning, QObject::tr ( "Ok" ), nullptr );
+#endif
+    }
+
+    static void ShowInfo ( QString strInfo )
+    {
+#ifndef HEADLESS
+        QMessageBox::information ( pMainForm, strMainFormName + ": " + QObject::tr ( "Information" ), strInfo, QObject::tr ( "Ok" ), nullptr );
+#endif
+    }
+};
 
 //============================================================================
 // CCommandlineOptions class:
