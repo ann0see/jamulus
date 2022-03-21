@@ -92,10 +92,7 @@ protected:
     void ShowGeneralSettings ( int iTab );
     void ShowChatWindow ( const bool bForceRaise = true );
     void ShowAnalyzerConsole();
-    void UpdateAudioFaderSlider();
     void UpdateRevSelection();
-    void Connect ( const QString& strSelectedAddress, const QString& strMixerBoardLabel );
-    void Disconnect();
     void ManageDragNDrop ( QDropEvent* Event, const bool bCheckAccept );
     void SetPingTime ( const int iPingTime, const int iOverallDelayMs, const CMultiColorLED::ELightColor eOverallDelayLEDColor );
 
@@ -126,6 +123,9 @@ protected:
     CAnalyzerConsole   AnalyzerConsole;
 
 public slots:
+    void OnConnecting ( QString strServerName );
+    void OnDisconnected();
+
     void OnSoundActiveTimeout();
     void OnConnectDisconBut();
     void OnTimerSigMet();
@@ -156,8 +156,8 @@ public slots:
     void OnSaveChannelSetup();
     void OnOpenConnectionSetupDialog() { ShowConnectionSetupDialog(); }
     void OnOpenUserProfileSettings();
-    void OnOpenAudioSettings();
-    void OnOpenNetworkSettings();
+    void OnOpenAudioNetworkSettings();
+    //    void OnOpenNetworkSettings();
     void OnOpenChatDialog() { ShowChatWindow(); }
     void OnOpenAnalyzerConsole() { ShowAnalyzerConsole(); }
     void OnOwnFaderFirst()
@@ -190,7 +190,7 @@ public slots:
     void OnConClientListMesReceived ( CVector<CChannelInfo> vecChanInfo );
     void OnChatTextReceived ( QString strChatText );
     void OnLicenceRequired ( ELicenceType eLicenceType );
-    void OnSoundDeviceChanged ( bool bDisconnect );
+    void OnSoundDeviceChanged();
 
     void OnChangeChanGain ( int iId, float fGain, bool bIsMyOwnFader ) { pClient->SetRemoteChanGain ( iId, fGain, bIsMyOwnFader ); }
 
@@ -231,7 +231,6 @@ public slots:
     }
 
     void OnConnectDlgAccepted();
-    void OnDisconnected() { Disconnect(); }
     void OnGUIDesignChanged();
     void OnMeterStyleChanged();
     void OnRecorderStateReceived ( ERecorderState eRecorderState );
@@ -243,4 +242,7 @@ public slots:
 
 signals:
     void SendTabChange ( int iTabIdx );
+    void LocalJitterBufferLedChange ( bool bBufferOk );
+    void ServerJitterBufferLedChange ( bool bBufferOk );
+    void Disconnected();
 };

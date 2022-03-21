@@ -23,20 +23,23 @@
 \******************************************************************************/
 
 #include "client.h"
+#include <QMessageBox>
 
 /* Implementation *************************************************************/
 // clang-format off
-//TODO: Don't pass bNoAutoJackConnect (and strNClientName ?) to CCLient and CSound but pass commandline options !
-//      Use the original char** argv so we can use the global command line parsing functions!
-//      Each class should parse the commandline for it's own options, so commandline options will be transparant.
-//  clang-format on
-CClient::CClient ( const quint16       iPortNumber,
-                   const quint16       iQosNumber,
-                   const QString&      strConnOnStartupAddress,
-                   const QString&      strNClientName,
-                   const bool          bNEnableIPv6,
-                   const bool          bNMuteMeInPersonalMix
-                 ) :
+
+    //TODO: Don't pass bNoAutoJackConnect (and strNClientName ?) to CCLient and CSound but pass commandline options !
+    //      Use the original char** argv so we can use the global command line parsing functions!
+    //      Each class should parse the commandline for it's own options, so commandline options will be transparant.
+
+// clang-format on
+
+CClient::CClient ( const quint16  iPortNumber,
+                   const quint16  iQosNumber,
+                   const QString& strConnOnStartupAddress,
+                   const QString& strNClientName,
+                   const bool     bNEnableIPv6,
+                   const bool     bNMuteMeInPersonalMix ) :
     ChannelInfo(),
     strClientName ( strNClientName ),
     Channel ( false ), /* we need a client channel -> "false" */
@@ -52,11 +55,10 @@ CClient::CClient ( const quint16       iPortNumber,
     bMuteOutStream ( false ),
     fMuteOutStreamGain ( 1.0f ),
     Socket ( &Channel, iPortNumber, iQosNumber, "", bNEnableIPv6 ),
-    Sound ( AudioCallback, this),
+    Sound ( AudioCallback, this ),
     iAudioInFader ( AUD_FADER_IN_MIDDLE ),
     bReverbOnLeftChan ( false ),
     iReverbLevel ( 0 ),
-    iInputBoost ( 1 ),
     iSndCrdPrefFrameSizeFactor ( FRAME_SIZE_FACTOR_DEFAULT ),
     iSndCrdFrameSizeFactor ( FRAME_SIZE_FACTOR_DEFAULT ),
     bSndCrdConversionBufferRequired ( false ),
@@ -67,7 +69,6 @@ CClient::CClient ( const quint16       iPortNumber,
     eGUIDesign ( GD_ORIGINAL ),
     eMeterStyle ( MT_LED_STRIPE ),
     bEnableOPUS64 ( false ),
-    bJitterBufferOK ( true ),
     bEnableIPv6 ( bNEnableIPv6 ),
     bMuteMeInPersonalMix ( bNMuteMeInPersonalMix ),
     iServerSockBufNumFrames ( DEF_NET_BUF_SIZE_NUM_BL ),
@@ -184,8 +185,7 @@ CClient::CClient ( const quint16       iPortNumber,
     // do an immediate start if a server address is given
     if ( !strConnOnStartupAddress.isEmpty() )
     {
-        SetServerAddr ( strConnOnStartupAddress );
-        Start();
+        Connect ( strConnOnStartupAddress, strConnOnStartupAddress );
     }
 }
 
@@ -210,30 +210,6 @@ CClient::~CClient()
     // free audio modes
     opus_custom_mode_destroy ( OpusMode );
     opus_custom_mode_destroy ( Opus64Mode );
-}
-
-void CClient::ShowError ( QString strError )
-{
-    if ( !strError.isEmpty() )
-    {
-        QMessageBox::critical ( NULL, QString ( APP_NAME ) + " " + tr ( "Error" ), strError, tr ( "Ok" ), nullptr );
-    }
-}
-
-void CClient::ShowWarning ( QString strWarning )
-{
-    if ( !strWarning.isEmpty() )
-    {
-        QMessageBox::warning ( NULL, QString ( APP_NAME ) + " " + tr ( "Warning" ), strWarning, tr ( "Ok" ), nullptr );
-    }
-}
-
-void CClient::ShowInfo ( QString strInfo )
-{
-    if ( !strInfo.isEmpty() )
-    {
-        QMessageBox::information ( NULL, QString ( APP_NAME ) + " " + tr ( "Information" ), strInfo, tr ( "Ok" ), nullptr );
-    }
 }
 
 void CClient::OnSendProtMessage ( CVector<uint8_t> vecMessage )
@@ -390,29 +366,6 @@ bool CClient::SetServerAddr ( QString strNAddr )
     }
 }
 
-bool CClient::GetAndResetbJitterBufferOKFlag()
-{
-    // get the socket buffer put status flag and reset it
-    const bool bSocketJitBufOKFlag = Socket.GetAndResetbJitterBufferOKFlag();
-
-    if ( !bJitterBufferOK )
-    {
-        // our jitter buffer get status is not OK so the overall status of the
-        // jitter buffer is also not OK (we do not have to consider the status
-        // of the socket buffer put status flag)
-
-        // reset flag before returning the function
-        bJitterBufferOK = true;
-        return false;
-    }
-
-    // the jitter buffer get (our own status flag) is OK, the final status
-    // now depends on the jitter buffer put status flag from the socket
-    // since per definition the jitter buffer status is OK if both the
-    // put and get status are OK
-    return bSocketJitBufOKFlag;
-}
-
 void CClient::SetSndCrdPrefFrameSizeFactor ( const int iNewFactor )
 {
     // first check new input parameter
@@ -468,70 +421,48 @@ void CClient::SetAudioChannels ( const EAudChanConf eNAudChanConf )
 
 void CClient::SetSndCrdDev ( const QString strNewDev )
 {
-    // if client was running then first
-    // stop it and restart again after new initialization
-    CSoundBase::CSoundStopper sound ( Sound );
+    Sound.SetDevice ( strNewDev );
 
-    if ( !Sound.SetDevice ( strNewDev ) )
+    if ( !Sound.IsStarted() )
     {
-        sound.Abort();                    // Do not restart!
-        emit SoundDeviceChanged ( true ); // Disconnect
+        Disconnect();
     }
 
-    // init again because the sound card actual buffer size might
-    // be changed on new device
+    emit SoundDeviceChanged();
     Init();
 }
 
 void CClient::SetSndCrdLeftInputChannel ( const int iNewChan )
 {
-    // if client was running then first
-    // stop it and restart again after new initialization
-    CSoundBase::CSoundStopper sound ( Sound );
-
     Sound.SetLeftInputChannel ( iNewChan );
     Init();
 }
 
 void CClient::SetSndCrdRightInputChannel ( const int iNewChan )
 {
-    // if client was running then first
-    // stop it and restart again after new initialization
-    CSoundBase::CSoundStopper sound ( Sound );
-
     Sound.SetRightInputChannel ( iNewChan );
     Init();
 }
 
 void CClient::SetSndCrdLeftOutputChannel ( const int iNewChan )
 {
-    // if client was running then first
-    // stop it and restart again after new initialization
-    CSoundBase::CSoundStopper sound ( Sound );
-
     Sound.SetLeftOutputChannel ( iNewChan );
     Init();
 }
 
 void CClient::SetSndCrdRightOutputChannel ( const int iNewChan )
 {
-    CSoundBase::CSoundStopper sound ( Sound );
-
-    // if client was running then first
-    // stop it and restart again after new initialization
     Sound.SetRightOutputChannel ( iNewChan );
     Init();
 }
 
 void CClient::OnSndCrdReinitRequest ( int iSndCrdResetType )
 {
-    QString strError = "";
-
     // audio device notifications can come at any time and they are in a
     // different thread, therefore we need a mutex here
     MutexDriverReinit.lock();
     {
-        CSoundBase::CSoundStopper sound ( Sound );
+        CSoundBase::CSoundStopper sound ( Sound ); // Stopping Sound and restarting Sound when we are done
 
         // in older QT versions, enums cannot easily be used in signals without
         // registering them -> workaround: we use the int type and cast to the enum
@@ -543,37 +474,29 @@ void CClient::OnSndCrdReinitRequest ( int iSndCrdResetType )
         // perform reinit request as indicated by the request type parameter
         if ( eSndCrdResetType != tSndCrdResetType::RS_ONLY_RESTART )
         {
-            if ( eSndCrdResetType != tSndCrdResetType::RS_ONLY_RESTART_AND_INIT )
+            if ( eSndCrdResetType == tSndCrdResetType::RS_RELOAD_RESTART_AND_INIT )
             {
-                // reinit the driver if requested
-                // (we use the currently selected driver)
-                Sound.ResetDevice(); // pgScorpio: was Sound.SetDev ( Sound.GetDev() ); But no! we should just reset the current device !
+                // reload the driver if requested
+                Sound.ReloadDevice();
             }
+            // else RS_ONLY_RESTART_AND_INIT
 
-            // init client object (must always be performed if the driver
-            // was changed)  pgScorpio: driver changed ??? Just settings changed Should be called by Sound.ResetDev() or Sound.Start if neccesary!!!
+            // init client object (must always be performed if the driver was changed)
 
             Init();
         }
     }
     MutexDriverReinit.unlock();
 
-    // inform GUI about the sound card device change, pgScorpio: device change???
-    if ( strError.isEmpty() )
-    {
-        emit SoundDeviceChanged ( false );
-    }
-    else
-    {
-        emit SoundDeviceChanged ( true );
-        ShowError ( strError );
-    }
+    // inform GUI about the sound card device change
+    emit SoundDeviceChanged();
 }
 
 void CClient::OnHandledSignal ( int sigNum )
 {
 #ifdef _WIN32
     // Windows does not actually get OnHandledSignal triggered
+    Disconnect();
     QCoreApplication::instance()->exit();
     Q_UNUSED ( sigNum )
 #else
@@ -582,11 +505,7 @@ void CClient::OnHandledSignal ( int sigNum )
     case SIGINT:
     case SIGTERM:
         // if connected, terminate connection (needed for headless mode)
-        if ( SoundIsStarted() )
-        {
-            Stop();
-        }
-
+        Disconnect();
         // this should trigger OnAboutToQuit
         QCoreApplication::instance()->exit();
         break;
@@ -668,52 +587,6 @@ void CClient::OnClientIDReceived ( int iChanID )
     }
 
     emit ClientIDReceived ( iChanID );
-}
-
-bool CClient::Start()
-{
-    // init object
-    Init();
-
-    // enable channel
-    Channel.SetEnable ( true );
-
-    // start audio interface
-    return StartSound();
-}
-
-void CClient::Stop()
-{
-    // stop audio interface
-    StopSound();
-
-    // disable channel
-    Channel.SetEnable ( false );
-
-    // wait for approx. 100 ms to make sure no audio packet is still in the
-    // network queue causing the channel to be reconnected right after having
-    // received the disconnect message (seems not to gain much, disconnect is
-    // still not working reliably)
-    QTime DieTime = QTime::currentTime().addMSecs ( 100 );
-    while ( QTime::currentTime() < DieTime )
-    {
-        // exclude user input events because if we use AllEvents, it happens
-        // that if the user initiates a connection and disconnection quickly
-        // (e.g. quickly pressing enter five times), the software can get into
-        // an unknown state
-        QCoreApplication::processEvents ( QEventLoop::ExcludeUserInputEvents, 100 );
-    }
-
-    // Send disconnect message to server (Since we disable our protocol
-    // receive mechanism with the next command, we do not evaluate any
-    // respond from the server, therefore we just hope that the message
-    // gets its way to the server, if not, the old behaviour time-out
-    // disconnects the connection anyway).
-    ConnLessProtocol.CreateCLDisconnection ( Channel.GetAddress() );
-
-    // reset current signal level and LEDs
-    bJitterBufferOK = true;
-    SignalLevelMeter.Reset();
 }
 
 void CClient::Init()
@@ -987,17 +860,6 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
 
     // Transmit signal ---------------------------------------------------------
 
-    if ( iInputBoost !=
-         1 ) // pgScorpio: This can now be done by CSound during sample conversion (Much faster than itterating the whole buffer again!)
-    {
-        // apply a general gain boost to all audio input:
-        for ( i = 0, j = 0; i < iMonoBlockSizeSam; i++, j += 2 )
-        {
-            vecsStereoSndCrd[j + 1] = static_cast<int16_t> ( iInputBoost * vecsStereoSndCrd[j + 1] );
-            vecsStereoSndCrd[j]     = static_cast<int16_t> ( iInputBoost * vecsStereoSndCrd[j] );
-        }
-    }
-
     // update stereo signal level meter (not needed in headless mode)
 #ifndef HEADLESS
     SignalLevelMeter.Update ( vecsStereoSndCrd, iMonoBlockSizeSam, true );
@@ -1010,7 +872,7 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
     }
 
     // apply pan (audio fader) and mix mono signals
-    if ( !( ( iAudioInFader == AUD_FADER_IN_MIDDLE ) && ( eAudioChannelConf == CC_STEREO ) ) )
+    if ( ( iAudioInFader != AUD_FADER_IN_MIDDLE ) || ( eAudioChannelConf != CC_STEREO ) )
     {
         // calculate pan gain in the range 0 to 1, where 0.5 is the middle position
         const float fPan = static_cast<float> ( iAudioInFader ) / AUD_FADER_IN_MAX;
@@ -1018,8 +880,8 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
         if ( eAudioChannelConf == CC_STEREO )
         {
             // for stereo only apply pan attenuation on one channel (same as pan in the server)
-            const float fGainL = MathUtils::GetLeftPan ( fPan, false );
-            const float fGainR = MathUtils::GetRightPan ( fPan, false );
+            const float fGainL = MathUtils::GetLeftPan ( fPan, GetAudioXFade() );
+            const float fGainR = MathUtils::GetRightPan ( fPan, GetAudioXFade() );
 
             for ( i = 0, j = 0; i < iMonoBlockSizeSam; i++, j += 2 )
             {
@@ -1033,8 +895,8 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
         {
             // for mono implement a cross-fade between channels and mix them, for
             // mono-in/stereo-out use no attenuation in pan center
-            const float fGainL = MathUtils::GetLeftPan ( fPan, eAudioChannelConf != CC_MONO_IN_STEREO_OUT );
-            const float fGainR = MathUtils::GetRightPan ( fPan, eAudioChannelConf != CC_MONO_IN_STEREO_OUT );
+            const float fGainL = MathUtils::GetLeftPan ( fPan, GetAudioXFade() );
+            const float fGainR = MathUtils::GetRightPan ( fPan, GetAudioXFade() );
 
             for ( i = 0, j = 0; i < iMonoBlockSizeSam; i++, j += 2 )
             {
@@ -1064,22 +926,9 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
         // OPUS encoding
         if ( CurOpusEncoder != nullptr )
         {
-            if ( bMuteOutStream )
-            {
-                iUnused = opus_custom_encode ( CurOpusEncoder,
-                                               &vecZeros[i * iNumAudioChannels * iOPUSFrameSizeSamples],
-                                               iOPUSFrameSizeSamples,
-                                               &vecCeltData[0],
-                                               iCeltNumCodedBytes );
-            }
-            else
-            {
-                iUnused = opus_custom_encode ( CurOpusEncoder,
-                                               &vecsStereoSndCrd[i * iNumAudioChannels * iOPUSFrameSizeSamples],
-                                               iOPUSFrameSizeSamples,
-                                               &vecCeltData[0],
-                                               iCeltNumCodedBytes );
-            }
+            opus_int16* pcm = bMuteOutStream ? &vecZeros[i * iNumAudioChannels * iOPUSFrameSizeSamples]
+                                             : &vecsStereoSndCrd[i * iNumAudioChannels * iOPUSFrameSizeSamples];
+            iUnused         = opus_custom_encode ( CurOpusEncoder, pcm, iOPUSFrameSizeSamples, &vecCeltData[0], iCeltNumCodedBytes );
         }
 
         // send coded audio through the network
@@ -1096,10 +945,10 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
     for ( i = 0; i < iSndCrdFrameSizeFactor; i++ )
     {
         // receive a new block
-        const bool bReceiveDataOk = ( Channel.GetData ( vecbyNetwData, iCeltNumCodedBytes ) == GS_BUFFER_OK );
+        const EGetDataStat eGetStatus = Channel.GetData ( vecbyNetwData, iCeltNumCodedBytes );
 
         // get pointer to coded data and manage the flags
-        if ( bReceiveDataOk )
+        if ( eGetStatus == GS_BUFFER_OK )
         {
             pCurCodedData = &vecbyNetwData[0];
 
@@ -1111,8 +960,8 @@ void CClient::ProcessAudioDataIntern ( CVector<int16_t>& vecsStereoSndCrd )
             // for lost packets use null pointer as coded input data
             pCurCodedData = nullptr;
 
-            // invalidate the buffer OK status flag
-            bJitterBufferOK = false;
+            // pgScorpio: bJitterBufferOK flag replaced by bClientJittBuffError in CChannel !!
+            //            use Channel.GetAndResetClientJittBuffError()
         }
 
         // OPUS decoding
@@ -1207,4 +1056,97 @@ int CClient::EstimatedOverallDelay ( const int iPingTimeMs )
         fDelayToFillNetworkPacketsMs + fTotalJitterBufferDelayMs + fTotalSoundCardDelayMs + fAdditionalAudioCodecDelayMs;
 
     return MathUtils::round ( fTotalBufferDelayMs + iPingTimeMs );
+}
+
+bool CClient::Connect ( QString strSelectedAddress, QString strServerName )
+{
+    if ( !Channel.IsEnabled() )
+    {
+        // set address and check if address is valid
+        if ( SetServerAddr ( strSelectedAddress ) )
+        {
+            // try to start client, if error occurred, do not go in
+            // running state but show error message
+            try
+            {
+                // init object
+                Init();
+
+                // enable channel
+                Channel.SetEnable ( true );
+
+                // start audio interface
+                Sound.Start();
+            }
+
+            catch ( const CGenErr& generr )
+            {
+                // show error message and return the function
+                CMsgBoxes::ShowError ( generr.GetErrorText() );
+            }
+
+            if ( Channel.IsEnabled() && Sound.IsStarted() )
+            {
+                emit Connecting ( strServerName );
+
+                return true;
+            }
+            else
+            {
+                // Something went wrong, abort connection
+                Sound.Stop();
+                Channel.SetEnable ( false );
+
+                emit Disconnected();
+
+                return false;
+            }
+        }
+    }
+
+    return Channel.IsEnabled();
+}
+
+bool CClient::Disconnect()
+{
+    if ( Channel.IsEnabled() )
+    {
+        Channel.Disconnect();
+
+        // wait for approx. 100 ms to make sure no audio packet is still in the
+        // network queue causing the channel to be reconnected right after having
+        // received the disconnect message (seems not to gain much, disconnect is
+        // still not working reliably)
+        // pgScorpio: Disconnect probably only works as expected while Sound is active !
+        //            Since several checks are done while processing audio data.
+        QTime DieTime = QTime::currentTime().addMSecs ( 100 );
+        while ( ( QTime::currentTime() ) < DieTime )
+        {
+            // exclude user input events because if we use AllEvents, it happens
+            // that if the user initiates a connection and disconnection quickly
+            // (e.g. quickly pressing enter five times), the software can get into
+            // an unknown state
+            QCoreApplication::processEvents ( QEventLoop::ExcludeUserInputEvents, 100 );
+        }
+
+        // Send disconnect message to server (Since we disable our protocol
+        // receive mechanism with the next command, we do not evaluate any
+        // respond from the server, therefore we just hope that the message
+        // gets its way to the server, if not, the old behaviour time-out
+        // disconnects the connection anyway).
+        ConnLessProtocol.CreateCLDisconnection ( Channel.GetAddress() );
+
+        // disable channel
+        Channel.SetEnable ( false );
+
+        // stop audio interface
+        Sound.Stop();
+
+        // reset current signal level and LEDs
+        SignalLevelMeter.Reset();
+
+        emit Disconnected();
+    }
+
+    return !Channel.IsEnabled();
 }

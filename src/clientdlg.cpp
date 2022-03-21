@@ -157,8 +157,8 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     ledDelay->setAccessibleName ( tr ( "Delay status LED indicator" ) );
 
     // buffers LED
-    QString strLEDBuffers = "<b>" + tr ( "Local Jitter Buffer Status LED" ) + ":</b> " +
-                            tr ( "The local jitter buffer status LED shows the current audio/streaming "
+    QString strLEDBuffers = "<b>" + tr ( "Jitter Buffers Status LED" ) + ":</b> " +
+                            tr ( "The jitter buffers status LED shows the current audio/streaming "
                                  "status. If the light is red, the audio stream is interrupted. "
                                  "This is caused by one of the following problems:" ) +
                             "<ul>"
@@ -182,7 +182,7 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     lblBuffers->setWhatsThis ( strLEDBuffers );
     ledBuffers->setWhatsThis ( strLEDBuffers );
 
-    ledBuffers->setAccessibleName ( tr ( "Local Jitter Buffer status LED indicator" ) );
+    ledBuffers->setAccessibleName ( tr ( "Jitter Buffers status LED indicator" ) );
 
     // current connection status parameter
     QString strConnStats = "<b>" +
@@ -248,7 +248,8 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     sldAudioReverb->setTickInterval ( AUD_REVERB_MAX / 5 );
 
     // init input boost
-    pClient->SetInputBoost ( pSettings->iInputBoost );
+    pClient->SetLeftInputBoost ( pSettings->iInputBoostLeft );
+    pClient->SetRightInputBoost ( pSettings->iInputBoostRight );
 
     // init reverb channel
     UpdateRevSelection();
@@ -270,14 +271,6 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
 
     // setup timers
     TimerDetectFeedback.setSingleShot ( true );
-
-    // Connect on startup ------------------------------------------------------
-    if ( !strConnOnStartupAddress.isEmpty() )
-    {
-        // initiate connection (always show the address in the mixer board
-        // (no alias))
-        Connect ( strConnOnStartupAddress, strConnOnStartupAddress );
-    }
 
     // File menu  --------------------------------------------------------------
     QMenu* pFileMenu = new QMenu ( tr ( "&File" ), this );
@@ -387,9 +380,12 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
 
     pSettingsMenu->addAction ( tr ( "&User Settings..." ), this, SLOT ( OnOpenUserProfileSettings() ), QKeySequence ( Qt::CTRL + Qt::Key_P ) );
 
-    pSettingsMenu->addAction ( tr ( "&Audio Settings..." ), this, SLOT ( OnOpenAudioSettings() ), QKeySequence ( Qt::CTRL + Qt::Key_S ) );
+    pSettingsMenu->addAction ( tr ( "&Audio and NetWork Settings..." ),
+                               this,
+                               SLOT ( OnOpenAudioNetworkSettings() ),
+                               QKeySequence ( Qt::CTRL + Qt::Key_S ) );
 
-    pSettingsMenu->addAction ( tr ( "&Network Settings..." ), this, SLOT ( OnOpenNetworkSettings() ), QKeySequence ( Qt::CTRL + Qt::Key_D ) );
+    //    pSettingsMenu->addAction ( tr ( "&Network Settings..." ), this, SLOT ( OnOpenNetworkSettings() ), QKeySequence ( Qt::CTRL + Qt::Key_D ) );
 
     // Main menu bar -----------------------------------------------------------
     QMenuBar* pMenu = new QMenuBar ( this );
@@ -473,6 +469,7 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     // other
     QObject::connect ( pClient, &CClient::ConClientListMesReceived, this, &CClientDlg::OnConClientListMesReceived );
 
+    QObject::connect ( pClient, &CClient::Connecting, this, &CClientDlg::OnConnecting );
     QObject::connect ( pClient, &CClient::Disconnected, this, &CClientDlg::OnDisconnected );
 
     QObject::connect ( pClient, &CClient::ChatTextReceived, this, &CClientDlg::OnChatTextReceived );
@@ -528,6 +525,9 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     QObject::connect ( &ClientSettingsDlg, &CClientSettingsDlg::NumMixerPanelRowsChanged, this, &CClientDlg::OnNumMixerPanelRowsChanged );
 
     QObject::connect ( this, &CClientDlg::SendTabChange, &ClientSettingsDlg, &CClientSettingsDlg::OnMakeTabChange );
+    QObject::connect ( this, &CClientDlg::LocalJitterBufferLedChange, &ClientSettingsDlg, &CClientSettingsDlg::OnLocalJitterBufferLedChange );
+    QObject::connect ( this, &CClientDlg::ServerJitterBufferLedChange, &ClientSettingsDlg, &CClientSettingsDlg::OnServerJitterBufferLedChange );
+    QObject::connect ( this, &CClientDlg::Disconnected, &ClientSettingsDlg, &CClientSettingsDlg::OnDisconnected );
 
     QObject::connect ( MainMixerBoard, &CAudioMixerBoard::ChangeChanGain, this, &CClientDlg::OnChangeChanGain );
 
@@ -588,10 +588,21 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     {
         pClient->CreateCLServerListReqVerAndOSMes ( UpdateServerHostAddress );
     }
+
+    // Connect on startup ------------------------------------------------------
+    if ( !strConnOnStartupAddress.isEmpty() )
+    {
+        // initiate connection (always show the address in the mixer board
+        // (no alias))
+        pClient->Connect ( strConnOnStartupAddress, strConnOnStartupAddress );
+    }
 }
 
 void CClientDlg::closeEvent ( QCloseEvent* Event )
 {
+    // if connected, terminate connection
+    pClient->Disconnect();
+
     // store window positions
     pSettings->vecWindowPosMain     = saveGeometry();
     pSettings->vecWindowPosSettings = ClientSettingsDlg.saveGeometry();
@@ -607,12 +618,6 @@ void CClientDlg::closeEvent ( QCloseEvent* Event )
     ChatDlg.close();
     ConnectDlg.close();
     AnalyzerConsole.close();
-
-    // if connected, terminate connection
-    if ( pClient->SoundIsStarted() )
-    {
-        pClient->Stop();
-    }
 
     // make sure all current fader settings are applied to the settings struct
     MainMixerBoard->StoreAllFaderSettings();
@@ -692,9 +697,9 @@ void CClientDlg::OnConnectDlgAccepted()
     {
         // first check if we are already connected, if this is the case we have to
         // disconnect the old server first
-        if ( pClient->SoundIsStarted() )
+        if ( pClient->ConnectionIsStarted() )
         {
-            Disconnect();
+            pClient->Disconnect();
         }
 
         // get the address from the connect dialog
@@ -738,21 +743,21 @@ void CClientDlg::OnConnectDlgAccepted()
         }
 
         // initiate connection
-        Connect ( strSelectedAddress, strMixerBoardLabel );
+        pClient->Connect ( strSelectedAddress, strMixerBoardLabel );
 
         // reset flag
         bConnectDlgWasShown = false;
     }
 }
 
-void CClientDlg::OnSoundActiveTimeout() { Disconnect(); }
+void CClientDlg::OnSoundActiveTimeout() { pClient->Disconnect(); }
 
 void CClientDlg::OnConnectDisconBut()
 {
     // the connect/disconnect button implements a toggle functionality
-    if ( pClient->SoundIsStarted() )
+    if ( pClient->ConnectionIsStarted() )
     {
-        Disconnect();
+        pClient->Disconnect();
     }
     else
     {
@@ -854,7 +859,7 @@ void CClientDlg::OnLicenceRequired ( ELicenceType eLicenceType )
         // disconnect from that server.
         if ( !LicenceDlg.exec() )
         {
-            Disconnect();
+            pClient->Disconnect();
         }
 
         // unmute the client output stream if local mute button is not pressed
@@ -886,11 +891,9 @@ void CClientDlg::OnNumClientsChanged ( int iNewNumClients )
     SetMyWindowTitle ( iNewNumClients );
 }
 
-void CClientDlg::OnOpenAudioSettings() { ShowGeneralSettings ( SETTING_TAB_AUDIO ); }
-
-void CClientDlg::OnOpenNetworkSettings() { ShowGeneralSettings ( SETTING_TAB_NETWORK ); }
-
 void CClientDlg::OnOpenUserProfileSettings() { ShowGeneralSettings ( SETTING_TAB_USER ); }
+void CClientDlg::OnOpenAudioNetworkSettings() { ShowGeneralSettings ( SETTING_TAB_AUDIO_NETWORK ); }
+// void CClientDlg::OnOpenNetworkSettings() { ShowGeneralSettings ( SETTING_TAB_AUDIO_NETWORK); }
 
 void CClientDlg::SetMyWindowTitle ( const int iNumClients )
 {
@@ -1009,7 +1012,7 @@ void CClientDlg::OnSettingsStateChanged ( int value )
 {
     if ( value == Qt::Checked )
     {
-        ShowGeneralSettings ( SETTING_TAB_AUDIO );
+        ShowGeneralSettings ( SETTING_TAB_AUDIO_NETWORK );
     }
     else
     {
@@ -1077,20 +1080,44 @@ void CClientDlg::OnTimerSigMet()
 
 void CClientDlg::OnTimerBuffersLED()
 {
-    CMultiColorLED::ELightColor eCurStatus;
+    static bool bConnected       = false;
+    static bool bServerBufferLed = false;
 
-    // get and reset current buffer state and set LED from that flag
-    if ( pClient->GetAndResetbJitterBufferOKFlag() )
+    if ( pClient->IsConnected() )
     {
-        eCurStatus = CMultiColorLED::RL_GREEN;
+        bool bLocalBufferError  = pClient->GetAndResetClientJittBuffError();
+        bool bServerBufferError = pClient->GetAndResetServerJittBuffError();
+
+        if ( !bConnected )
+        {
+            bConnected       = true;
+            bServerBufferLed = bServerBufferError; // bServerBufferLed is only supported if the server did send a JitterBuffer error during connecting
+            // Errors during connection phase are ignored.
+            bServerBufferError = false;
+            bLocalBufferError  = false;
+        }
+
+        // update the buffer LED and the general settings dialog, too
+        ledBuffers->SetLight ( ( bLocalBufferError || bServerBufferError ) ? CMultiColorLED::RL_RED : CMultiColorLED::RL_GREEN );
+
+        emit LocalJitterBufferLedChange ( bLocalBufferError );
+
+        // Only show and update the ServerBufferLed if supported.
+        if ( bServerBufferLed )
+        {
+            emit ServerJitterBufferLedChange ( bServerBufferError );
+        }
     }
     else
     {
-        eCurStatus = CMultiColorLED::RL_RED;
+        if ( bConnected )
+        {
+            bConnected       = false;
+            bServerBufferLed = false;
+            // Hide the leds....
+            emit Disconnected();
+        }
     }
-
-    // update the buffer LED and the general settings dialog, too
-    ledBuffers->SetLight ( eCurStatus );
 }
 
 void CClientDlg::OnTimerPing()
@@ -1138,23 +1165,8 @@ void CClientDlg::OnPingTimeResult ( int iPingTime )
 
 void CClientDlg::OnTimerDetectFeedback() { bDetectFeedback = false; }
 
-void CClientDlg::OnSoundDeviceChanged ( bool bDisconnect )
+void CClientDlg::OnSoundDeviceChanged()
 {
-    if ( bDisconnect )
-    {
-        Disconnect();
-
-        TimerDetectFeedback.stop();
-        bDetectFeedback = false;
-    }
-    else
-    {
-        if ( pSettings->bEnableFeedbackDetection && TimerDetectFeedback.isActive() )
-        {
-            TimerDetectFeedback.start ( DETECT_FEEDBACK_TIME_MS );
-            bDetectFeedback = true;
-        }
-    }
     // update the settings dialog
     ClientSettingsDlg.UpdateSoundDeviceChannelSelectionFrame();
 }
@@ -1165,58 +1177,33 @@ void CClientDlg::OnCLPingTimeWithNumClientsReceived ( CHostAddress InetAddr, int
     ConnectDlg.SetPingTimeAndNumClientsResult ( InetAddr, iPingTime, iNumClients );
 }
 
-// clang-format off
-//pgScorpio TODO:
-// Connect() does NOT belong here! Dialog code should never take any non ui actions !
-// Signal CClient, and CLient should take the needed actions and control CClientDlg by onConnected(), onDisconnected().
-//  clang-format on
-void CClientDlg::Connect ( const QString& strSelectedAddress, const QString& strMixerBoardLabel )
+void CClientDlg::OnConnecting ( QString strServerName )
 {
-    // set address and check if address is valid
-    if ( pClient->SetServerAddr ( strSelectedAddress ) )
+    OnTimerBuffersLED(); // pre- Update to sync connected status
+
+    // hide label connect to server
+    lblConnectToServer->hide();
+
+    lbrInputLevelL->setEnabled ( true );
+    lbrInputLevelR->setEnabled ( true );
+
+    // change connect button text to "disconnect"
+    butConnect->setText ( tr ( "&Disconnect" ) );
+
+    // set server name in audio mixer group box title
+    MainMixerBoard->SetServerName ( strServerName );
+
+    // start timer for level meter bar and ping time measurement
+    TimerSigMet.start ( LEVELMETER_UPDATE_TIME_MS );
+    TimerBuffersLED.start ( BUFFER_LED_UPDATE_TIME_MS );
+    TimerPing.start ( PING_UPDATE_TIME_MS );
+
+    // audio feedback detection
+    // pgScorpio: Shouldn't all feedback detection in CClient ???
+    if ( pSettings->bEnableFeedbackDetection )
     {
-        // try to start client, if error occurred, do not go in
-        // running state but show error message
-        try
-        {
-            if ( !pClient->SoundIsStarted() )
-            {
-                pClient->Start();
-            }
-        }
-
-        catch ( const CGenErr& generr )
-        {
-            // show error message and return the function
-            QMessageBox::critical ( this, APP_NAME, generr.GetErrorText(), "Close", nullptr );
-            return;
-        }
-
-        if ( pClient->SoundIsStarted() )
-        {
-            // hide label connect to server
-            lblConnectToServer->hide();
-            lbrInputLevelL->setEnabled ( true );
-            lbrInputLevelR->setEnabled ( true );
-
-            // change connect button text to "disconnect"
-            butConnect->setText ( tr ( "&Disconnect" ) );
-
-            // set server name in audio mixer group box title
-            MainMixerBoard->SetServerName ( strMixerBoardLabel );
-
-            // start timer for level meter bar and ping time measurement
-            TimerSigMet.start ( LEVELMETER_UPDATE_TIME_MS );
-            TimerBuffersLED.start ( BUFFER_LED_UPDATE_TIME_MS );
-            TimerPing.start ( PING_UPDATE_TIME_MS );
-
-            // audio feedback detection
-            if ( pSettings->bEnableFeedbackDetection )
-            {
-                TimerDetectFeedback.start ( DETECT_FEEDBACK_TIME_MS ); // single shot timer
-                bDetectFeedback = true;
-            }
-        }
+        TimerDetectFeedback.start ( DETECT_FEEDBACK_TIME_MS ); // single shot timer
+        bDetectFeedback = true;
     }
 }
 
@@ -1225,17 +1212,8 @@ void CClientDlg::Connect ( const QString& strSelectedAddress, const QString& str
 // Disconnect() does NOT belong here! Dialog code should never take any non ui actions !
 // Signal CClient, and CLient should take the needed actions and control CClientDlg by onConnected(), onDisconnected().
 //  clang-format on
-void CClientDlg::Disconnect()
+void CClientDlg::OnDisconnected()
 {
-    // only stop client if currently running, in case we received
-    // the stopped message, the client is already stopped but the
-    // connect/disconnect button and other GUI controls must be
-    // updated
-    if ( pClient->SoundIsStarted() )
-    {
-        pClient->Stop();
-    }
-
     // change connect button text to "connect"
     butConnect->setText ( tr ( "C&onnect" ) );
 
@@ -1254,6 +1232,8 @@ void CClientDlg::Disconnect()
 
     // stop other timers
     TimerBuffersLED.stop();
+    OnTimerBuffersLED(); //Update once more
+
     TimerPing.stop();
     TimerDetectFeedback.stop();
     bDetectFeedback = false;
@@ -1267,6 +1247,8 @@ OnTimerStatus();
     // reset LEDs
     ledBuffers->Reset();
     ledDelay->Reset();
+    // notify settings dialog
+    emit Disconnected();
 
     // clear text labels with client parameters
     lblPingVal->setText ( "---" );

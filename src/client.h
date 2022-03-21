@@ -123,17 +123,18 @@ public:
     bool SoundIsStarted() { return Sound.IsStarted(); } // Was IsRunning, See Client dialog code:  IsRunning is misused on some places
     bool SoundIsActive() const { return Sound.IsActive(); }
 
-    // pgScorpio: Start/Stop what ??
-    bool Start();
-    void Stop();
-
     bool SetServerAddr ( QString strNAddr );
 
     double GetLevelForMeterdBLeft() { return SignalLevelMeter.GetLevelForMeterdBLeftOrMono(); }
     double GetLevelForMeterdBRight() { return SignalLevelMeter.GetLevelForMeterdBRight(); }
 
-    bool GetAndResetbJitterBufferOKFlag();
+    inline bool GetAndResetClientJittBuffError() { return Channel.GetAndResetClientJittBuffError(); }
+    inline bool GetAndResetServerJittBuffError() { return Channel.GetAndResetServerJittBuffError(); }
 
+    bool Connect ( QString strSelectedAddress, QString strServerName );
+    bool Disconnect();
+    bool ConnectionIsStarted() { return Channel.IsEnabled(); }
+    bool IsConnecting() { return Channel.IsEnabled() && !Channel.IsConnected(); }
     bool IsConnected() { return Channel.IsConnected(); }
 
     EGUIDesign GetGUIDesign() const { return eGUIDesign; }
@@ -147,6 +148,8 @@ public:
 
     EAudChanConf GetAudioChannels() const { return eAudioChannelConf; }
     void         SetAudioChannels ( const EAudChanConf eNAudChanConf );
+
+    bool GetAudioXFade() const { return eAudioChannelConf == CC_MONO; } // only use attenuation in pan center for mono mode
 
     int  GetAudioInFader() const { return iAudioInFader; }
     void SetAudioInFader ( const int iNV ) { iAudioInFader = iNV; }
@@ -247,11 +250,9 @@ public:
 
     void SetRemoteChanPan ( const int iId, const float fPan ) { Channel.SetRemoteChanPan ( iId, fPan ); }
 
-    void SetInputBoost ( const int iNewBoost ) //{ iInputBoost = iNewBoost; }
-    {                                          // pgScorpio: Moved input gain to CSound
-        iInputBoost = 1;
-        Sound.SetInputGain ( iNewBoost );
-    }
+    void SetLeftInputBoost ( const int iNewBoost ) { Sound.SetLeftInputGain ( iNewBoost ); }
+
+    void SetRightInputBoost ( const int iNewBoost ) { Sound.SetRightInputGain ( iNewBoost ); }
 
     void SetRemoteInfo() { Channel.SetRemoteInfo ( ChannelInfo ); }
 
@@ -337,7 +338,6 @@ protected:
     bool         bReverbOnLeftChan;
     int          iReverbLevel;
     CAudioReverb AudioReverb;
-    int          iInputBoost;
 
     int iSndCrdPrefFrameSizeFactor;
     int iSndCrdFrameSizeFactor;
@@ -374,11 +374,6 @@ protected:
 
     CSignalHandler* pSignalHandler;
 
-protected:
-    void ShowError ( QString strError );
-    void ShowWarning ( QString strWarning );
-    void ShowInfo ( QString strInfo );
-
 protected slots:
     void OnHandledSignal ( int sigNum );
     void OnSendProtMessage ( CVector<uint8_t> vecMessage );
@@ -394,6 +389,8 @@ protected slots:
     {
         if ( InetAddr == Channel.GetAddress() )
         {
+            Sound.Stop();
+            Channel.SetEnable ( false );
             emit Disconnected();
         }
     }
@@ -422,20 +419,17 @@ signals:
     void RecorderStateReceived ( ERecorderState eRecorderState );
 
     void CLServerListReceived ( CHostAddress InetAddr, CVector<CServerInfo> vecServerInfo );
-
     void CLRedServerListReceived ( CHostAddress InetAddr, CVector<CServerInfo> vecServerInfo );
-
     void CLConnClientsListMesReceived ( CHostAddress InetAddr, CVector<CChannelInfo> vecChanInfo );
-
     void CLPingTimeWithNumClientsReceived ( CHostAddress InetAddr, int iPingTime, int iNumClients );
-
     void CLVersionAndOSReceived ( CHostAddress InetAddr, COSUtil::EOpSystemType eOSType, QString strVersion );
-
     void CLChannelLevelListReceived ( CHostAddress InetAddr, CVector<uint16_t> vecLevelList );
 
+    void SoundDeviceChanged();
+    void Connecting ( QString strServerName );
+    void Connected();
     void Disconnected();
 
-    void SoundDeviceChanged ( bool bDisconnect );
     void ControllerInFaderLevel ( int iChannelIdx, int iValue );
     void ControllerInPanValue ( int iChannelIdx, int iValue );
     void ControllerInFaderIsSolo ( int iChannelIdx, bool bIsSolo );

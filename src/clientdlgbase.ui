@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>511</width>
+    <width>813</width>
     <height>490</height>
    </rect>
   </property>
@@ -324,6 +324,9 @@
             </item>
             <item>
              <layout class="QGridLayout" name="gridLayout">
+              <property name="horizontalSpacing">
+               <number>4</number>
+              </property>
               <item row="2" column="0">
                <widget class="QLabel" name="lblBuffers">
                 <property name="text">
@@ -365,9 +368,15 @@
               </item>
               <item row="0" column="1">
                <widget class="QLabel" name="lblPingVal">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="minimumSize">
                  <size>
-                  <width>34</width>
+                  <width>35</width>
                   <height>0</height>
                  </size>
                 </property>
@@ -403,9 +412,15 @@
               </item>
               <item row="1" column="1">
                <widget class="QLabel" name="lblDelayVal">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
                 <property name="minimumSize">
                  <size>
-                  <width>34</width>
+                  <width>35</width>
                   <height>0</height>
                  </size>
                 </property>
