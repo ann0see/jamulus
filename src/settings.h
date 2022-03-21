@@ -119,8 +119,9 @@ public:
         vecStoredFaderGroupID ( MAX_NUM_STORED_FADER_SETTINGS, INVALID_INDEX ),
         vstrIPAddress ( MAX_NUM_SERVER_ADDR_ITEMS, "" ),
         iNewClientFaderLevel ( 100 ),
-        iInputBoost ( 1 ),
-        iSettingsTab ( SETTING_TAB_AUDIO ),
+        iInputBoostLeft ( 1 ),
+        iInputBoostRight ( 1 ),
+        iSettingsTab ( SETTING_TAB_AUDIO_NETWORK ),
         bConnectDlgShowAllMusicians ( true ),
         eChannelSortType ( ST_NO_SORT ),
         iNumMixerPanelRows ( 1 ),
@@ -151,7 +152,8 @@ public:
     CVector<int>     vecStoredFaderGroupID;
     CVector<QString> vstrIPAddress;
     int              iNewClientFaderLevel;
-    int              iInputBoost;
+    int              iInputBoostLeft;
+    int              iInputBoostRight;
     int              iSettingsTab;
     bool             bConnectDlgShowAllMusicians;
     EChSortType      eChannelSortType;

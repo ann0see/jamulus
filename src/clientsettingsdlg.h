@@ -106,6 +106,10 @@ public slots:
     void OnMakeTabChange ( int iTabIdx );
     void OnAudioPanValueChanged ( int value );
     void OnDriverSetupClicked();
+    void OnLocalJitterBufferLedChange ( bool bBufferOk );
+    void OnServerJitterBufferLedChange ( bool bBufferOk );
+    void OnConnected();
+    void OnDisconnected();
 
 signals:
     void GUIDesignChanged();

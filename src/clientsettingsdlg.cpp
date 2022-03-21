@@ -68,7 +68,7 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
                                "%1, where %2 is the current attenuation indicator." )
                               .arg ( "<i>" + tr ( "L" ) + " -x</i>", "<i>x</i>" );
 
-    groupBoxBalance->setWhatsThis ( strAudFader );
+    gbInputBalance->setWhatsThis ( strAudFader );
     lblAudioPanValue->setWhatsThis ( strAudFader );
     sldAudioPan_5->setWhatsThis ( strAudFader );
 
@@ -121,17 +121,17 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
     chbAutoJitBuf->setToolTip ( strJitterBufferSizeTT );
 
     // sound card device
-    groupBoxAudioDevice->setWhatsThis ( soundProperties.AudioDeviceWhatsThis() );
+    gbAudioDevice->setWhatsThis ( soundProperties.AudioDeviceWhatsThis() );
+    cbxSoundcard->setWhatsThis ( soundProperties.AudioDeviceWhatsThis() );
     cbxSoundcard->setAccessibleName ( soundProperties.AudioDeviceAccessibleName() );
     cbxSoundcard->setToolTip ( soundProperties.AudioDeviceToolTip() + TOOLTIP_COM_END_TEXT );
-    cbxSoundcard->setHidden ( !soundProperties.HasAudioDeviceSelection() );
+    cbxSoundcard->setDisabled ( !soundProperties.HasAudioDeviceSelection() );
 
     // driver setup button
+    butDriverSetup->setText ( soundProperties.SetupButtonText() );
     butDriverSetup->setWhatsThis ( soundProperties.SetupButtonWhatsThis() );
     butDriverSetup->setAccessibleName ( soundProperties.SetupButtonAccessibleName() );
     butDriverSetup->setToolTip ( soundProperties.SetupButtonToolTip() + TOOLTIP_COM_END_TEXT );
-
-    butDriverSetup->setText ( soundProperties.SetupButtonText() );
     butDriverSetup->setHidden ( !soundProperties.HasSetupDialog() );
 
     // sound card input/output channel mapping
@@ -145,31 +145,40 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
                                      "selected." )
                                     .arg ( APP_NAME );
 
-    lblInChannelMapping->setWhatsThis ( strSndCrdChanMapp );
-    lblInChannelMapping->setVisible ( soundProperties.HasInputChannelSelection() );
-    lblOutChannelMapping->setWhatsThis ( strSndCrdChanMapp );
-    lblOutChannelMapping->setVisible ( soundProperties.HasOutputChannelSelection() );
+    gbInputChannelMapping->setWhatsThis ( strSndCrdChanMapp );
+    gbInputChannelMapping->setVisible ( soundProperties.HasInputChannelSelection() );
+
+    gbOutputChannelMapping->setWhatsThis ( strSndCrdChanMapp );
+    gbOutputChannelMapping->setVisible ( soundProperties.HasOutputChannelSelection() );
+
     cbxLInChan->setWhatsThis ( strSndCrdChanMapp );
     cbxLInChan->setAccessibleName ( tr ( "Left input channel selection combo box" ) );
     cbxLInChan->setVisible ( soundProperties.HasInputChannelSelection() );
+
     cbxRInChan->setWhatsThis ( strSndCrdChanMapp );
     cbxRInChan->setAccessibleName ( tr ( "Right input channel selection combo box" ) );
     cbxRInChan->setVisible ( soundProperties.HasInputChannelSelection() );
+
     cbxLOutChan->setWhatsThis ( strSndCrdChanMapp );
     cbxLOutChan->setAccessibleName ( tr ( "Left output channel selection combo box" ) );
     cbxLOutChan->setVisible ( soundProperties.HasOutputChannelSelection() );
+
     cbxROutChan->setWhatsThis ( strSndCrdChanMapp );
     cbxROutChan->setAccessibleName ( tr ( "Right output channel selection combo box" ) );
     cbxROutChan->setVisible ( soundProperties.HasOutputChannelSelection() );
 
-    // enable OPUS64
-    chbEnableOPUS64->setWhatsThis ( "<b>" + tr ( "Enable Small Network Buffers" ) + ":</b> " +
-                                    tr ( "Enables support for very small network audio packets. These "
-                                         "network packets are only actually used if the sound card buffer delay is smaller than %1 samples. The "
-                                         "smaller the network buffers, the lower the audio latency. But at the same time "
-                                         "the network load and the probability of audio dropouts or sound artifacts increases." )
-                                        .arg ( DOUBLE_SYSTEM_FRAME_SIZE_SAMPLES ) );
+    QString strSmallNetworkBuffersWhatsThis =
+        "<b>" + tr ( "Enable Small Network Buffers" ) + ":</b> " +
+        tr ( "Enables support for very small network audio packets. These "
+             "network packets are only actually used if the sound card buffer delay is smaller than %1 samples. The "
+             "smaller the network buffers, the lower the audio latency. But at the same time "
+             "the network load and the probability of audio dropouts or sound artifacts increases." )
+            .arg ( DOUBLE_SYSTEM_FRAME_SIZE_SAMPLES );
 
+    gbSmallNetworkBuffers->setWhatsThis ( strSmallNetworkBuffersWhatsThis );
+
+    // enable OPUS64
+    chbEnableOPUS64->setWhatsThis ( strSmallNetworkBuffersWhatsThis );
     chbEnableOPUS64->setAccessibleName ( tr ( "Enable small network buffers check box" ) );
 
     // sound card buffer delay
@@ -222,12 +231,15 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
                                       .arg ( APP_NAME ) +
                                   TOOLTIP_COM_END_TEXT;
 
+    gbBufferDelay->setWhatsThis ( strSndCrdBufDelay );
     rbtBufferDelayPreferred->setWhatsThis ( strSndCrdBufDelay );
     rbtBufferDelayPreferred->setAccessibleName ( tr ( "64 samples setting radio button" ) );
     rbtBufferDelayPreferred->setToolTip ( strSndCrdBufDelayTT );
+
     rbtBufferDelayDefault->setWhatsThis ( strSndCrdBufDelay );
     rbtBufferDelayDefault->setAccessibleName ( tr ( "128 samples setting radio button" ) );
     rbtBufferDelayDefault->setToolTip ( strSndCrdBufDelayTT );
+
     rbtBufferDelaySafe->setWhatsThis ( strSndCrdBufDelay );
     rbtBufferDelaySafe->setAccessibleName ( tr ( "256 samples setting radio button" ) );
     rbtBufferDelaySafe->setToolTip ( strSndCrdBufDelayTT );
@@ -244,7 +256,6 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
                                        "Bar (narrow) is selected, the input meters are set to Bar (wide). When "
                                        "LEDs (round, small) is selected, the input meters are set to LEDs (round, big). "
                                        "The remaining options apply to the mixerboard and input meters." ) );
-
     cbxMeterStyle->setAccessibleName ( tr ( "Meter Style combo box" ) );
 
     // Interface Language
@@ -323,10 +334,12 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
                                  "there. Instead, decrease your input level by getting farther away "
                                  "from your microphone, adjusting your sound equipment "
                                  "or by decreasing your operating system's input settings." );
-    groupBoxInputBoost->setWhatsThis ( strInputBoost );
-    cbxInputBoost->setWhatsThis ( strInputBoost );
-    cbxInputBoost->setAccessibleName ( tr ( "Input Boost combo box" ) );
-    groupBoxInputBoost->setVisible ( soundProperties.HasInputGainSelection() );
+    gbInputBoost->setWhatsThis ( strInputBoost );
+    cbxInputBoostLeft->setWhatsThis ( strInputBoost );
+    cbxInputBoostLeft->setAccessibleName ( tr ( "Input Boost combo box" ) );
+    cbxInputBoostRight->setWhatsThis ( strInputBoost );
+    cbxInputBoostRight->setAccessibleName ( tr ( "Input Boost combo box" ) );
+    gbInputBoost->setVisible ( soundProperties.HasInputGainSelection() );
 
     // custom directories
     QString strCustomDirectories = "<b>" + tr ( "Custom Directories" ) + ":</b> " +
@@ -347,7 +360,7 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
                                 "service such as speedtest.net)." );
 
     lblUpstreamValue->setWhatsThis ( strConnStats );
-    grbUpstreamValue->setWhatsThis ( strConnStats );
+    gbAudioStreamRate->setWhatsThis ( strConnStats );
 
     QString strNumMixerPanelRows =
         "<b>" + tr ( "Number of Mixer Panel Rows" ) + ":</b> " + tr ( "Adjust the number of rows used to arrange the mixer panel." );
@@ -358,7 +371,7 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
     QString strDetectFeedback = "<b>" + tr ( "Feedback Protection" ) + ":</b> " +
                                 tr ( "Enable feedback protection to detect acoustic feedback between "
                                      "microphone and speakers." );
-    groupBoxFeedBackProtection->setWhatsThis ( strDetectFeedback );
+    gbFeedBackProtection->setWhatsThis ( strDetectFeedback );
     chbDetectFeedback->setWhatsThis ( strDetectFeedback );
     chbDetectFeedback->setAccessibleName ( tr ( "Feedback Protection check box" ) );
 
@@ -376,6 +389,20 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
     // network buffer sliders
     sldNetBuf->setRange ( MIN_NET_BUF_SIZE_NUM_BL, MAX_NET_BUF_SIZE_NUM_BL );
     sldNetBufServer->setRange ( MIN_NET_BUF_SIZE_NUM_BL, MAX_NET_BUF_SIZE_NUM_BL );
+
+    ledLocalBuffers->SetType ( CMultiColorLED::MT_INDICATOR );
+    ledServerBuffers->SetType ( CMultiColorLED::MT_INDICATOR );
+
+    ledLocalBuffers->setWhatsThis ( tr ( "Local Jitter Buffer Status LED" ) );
+    ledServerBuffers->setWhatsThis ( tr ( "Server Jitter Buffer Status LED" ) );
+    ledLocalBuffers->setAccessibleName ( tr ( "Local Jitter Buffer status LED indicator" ) );
+    ledServerBuffers->setAccessibleName ( tr ( "Server Jitter Buffer status LED indicator" ) );
+    ledLocalBuffers->Reset();
+    ledServerBuffers->Reset();
+
+    ledLocalBuffers->Reset();
+    ledServerBuffers->Reset();
+
     UpdateJitterBufferFrame();
 
     // init sound card channel selection frame
@@ -421,15 +448,19 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
     // update new client fader level edit box
     edtNewClientLevel->setText ( QString::number ( pSettings->iNewClientFaderLevel ) );
 
-    // Input Boost combo box
-    cbxInputBoost->clear();
-    cbxInputBoost->addItem ( tr ( "None" ) );
+    // Input Boost combo boxes
+    cbxInputBoostLeft->clear();
+    cbxInputBoostRight->clear();
+    cbxInputBoostLeft->addItem ( tr ( "None" ) );
+    cbxInputBoostRight->addItem ( tr ( "None" ) );
     for ( int i = 2; i <= 10; i++ )
     {
-        cbxInputBoost->addItem ( QString ( "%1x" ).arg ( i ) );
+        cbxInputBoostLeft->addItem ( QString ( "%1x" ).arg ( i ) );
+        cbxInputBoostRight->addItem ( QString ( "%1x" ).arg ( i ) );
     }
     // factor is 1-based while index is 0-based:
-    cbxInputBoost->setCurrentIndex ( pSettings->iInputBoost - 1 );
+    cbxInputBoostLeft->setCurrentIndex ( pSettings->iInputBoostLeft - 1 );
+    cbxInputBoostRight->setCurrentIndex ( pSettings->iInputBoostRight - 1 );
 
     // init number of mixer rows
     spnMixerRows->setValue ( pSettings->iNumMixerPanelRows );
@@ -646,7 +677,12 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
 
     QObject::connect ( cbxLanguage, &CLanguageComboBox::LanguageChanged, this, &CClientSettingsDlg::OnLanguageChanged );
 
-    QObject::connect ( cbxInputBoost,
+    QObject::connect ( cbxInputBoostLeft,
+                       static_cast<void ( QComboBox::* ) ( int )> ( &QComboBox::activated ),
+                       this,
+                       &CClientSettingsDlg::OnInputBoostChanged );
+
+    QObject::connect ( cbxInputBoostRight,
                        static_cast<void ( QComboBox::* ) ( int )> ( &QComboBox::activated ),
                        this,
                        &CClientSettingsDlg::OnInputBoostChanged );
@@ -716,6 +752,28 @@ void CClientSettingsDlg::showEvent ( QShowEvent* )
     pcbxSkill->setCurrentIndex ( pcbxSkill->findData ( static_cast<int> ( pClient->ChannelInfo.eSkillLevel ) ) );
 }
 
+void CClientSettingsDlg::OnLocalJitterBufferLedChange ( bool bBufferError )
+{
+    ledLocalBuffers->SetLight ( bBufferError ? CMultiColorLED::RL_RED : CMultiColorLED::RL_GREEN );
+}
+
+void CClientSettingsDlg::OnServerJitterBufferLedChange ( bool bBufferError )
+{
+    ledServerBuffers->SetLight ( bBufferError ? CMultiColorLED::RL_RED : CMultiColorLED::RL_GREEN );
+}
+
+void CClientSettingsDlg::OnConnected()
+{
+    ledLocalBuffers->SetLight ( CMultiColorLED::RL_GREEN );
+    ledServerBuffers->Reset();
+}
+
+void CClientSettingsDlg::OnDisconnected()
+{
+    ledLocalBuffers->Reset();
+    ledServerBuffers->Reset();
+}
+
 void CClientSettingsDlg::UpdateJitterBufferFrame()
 {
     // update slider value and text
@@ -780,12 +838,12 @@ void CClientSettingsDlg::UpdateSoundCardFrame()
     if ( bPreferredChecked || bDefaultChecked || bSafeChecked )
     {
         // default title text
-        grbSoundCrdBufDelay->setTitle ( tr ( "Buffer Delay" ) );
+        gbBufferDelay->setTitle ( tr ( "Buffer Delay" ) );
     }
     else
     {
         // special title text with buffer size information added
-        grbSoundCrdBufDelay->setTitle ( tr ( "Buffer Delay: " ) + GenSndCrdBufferDelayString ( iCurActualBufSize ) );
+        gbBufferDelay->setTitle ( tr ( "Buffer Delay: " ) + GenSndCrdBufferDelayString ( iCurActualBufSize ) );
     }
 }
 
@@ -914,6 +972,7 @@ void CClientSettingsDlg::OnROutChanActivated ( int iChanIdx )
 void CClientSettingsDlg::OnAudioChannelsActivated ( int iChanIdx )
 {
     pClient->SetAudioChannels ( static_cast<EAudChanConf> ( iChanIdx ) );
+    UpdateAudioFaderSlider(); // Value display depends on audio mode !
     emit AudioChannelsChanged();
     UpdateDisplay(); // upload rate will be changed
 }
@@ -1039,8 +1098,11 @@ void CClientSettingsDlg::UpdateDirectoryServerComboBox()
 void CClientSettingsDlg::OnInputBoostChanged()
 {
     // index is zero-based while boost factor must be 1-based:
-    pSettings->iInputBoost = cbxInputBoost->currentIndex() + 1;
-    pClient->SetInputBoost ( pSettings->iInputBoost );
+    pSettings->iInputBoostLeft  = cbxInputBoostLeft->currentIndex() + 1;
+    pSettings->iInputBoostRight = cbxInputBoostRight->currentIndex() + 1;
+
+    pClient->SetLeftInputBoost ( pSettings->iInputBoostLeft );
+    pClient->SetRightInputBoost ( pSettings->iInputBoostRight );
 }
 
 void CClientSettingsDlg::OnAliasTextChanged ( const QString& strNewName )
@@ -1129,16 +1191,14 @@ void CClientSettingsDlg::UpdateAudioFaderSlider()
     }
     else
     {
-        if ( iCurAudInFader > AUD_FADER_IN_MIDDLE )
-        {
-            // attenuation on right channel
-            lblAudioPanValue->setText ( tr ( "L" ) + " -" + QString().setNum ( iCurAudInFader - AUD_FADER_IN_MIDDLE ) );
-        }
-        else
-        {
-            // attenuation on left channel
-            lblAudioPanValue->setText ( tr ( "R" ) + " -" + QString().setNum ( AUD_FADER_IN_MIDDLE - iCurAudInFader ) );
-        }
+        bool  bXFade = pClient->GetAudioXFade();
+        float fPan   = static_cast<float> ( iCurAudInFader ) / AUD_FADER_IN_MAX;
+        float fGainL = MathUtils::GetLeftPan ( fPan, bXFade );
+        float fGainR = MathUtils::GetRightPan ( fPan, bXFade );
+        int   iPercL = static_cast<int> ( fGainL * 100 );
+        int   iPercR = static_cast<int> ( fGainR * 100 );
+
+        lblAudioPanValue->setText ( tr ( "L" ) + ":" + QString().setNum ( iPercL ) + "% / " + tr ( "R" ) + ":" + QString().setNum ( iPercR ) + "%" );
     }
 }
 

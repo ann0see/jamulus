@@ -244,9 +244,20 @@ void CClientSettings::ReadSettingsFromXML ( const QDomDocument& IniXMLDocument, 
     }
 
     // input boost
-    if ( GetNumericIniSet ( IniXMLDocument, "client", "inputboost", 1, 10, iValue ) )
+    if ( GetNumericIniSet ( IniXMLDocument, "client", "inputboost", 1, 10, iValue ) ) // Backwards compatibility !!!
     {
-        iInputBoost = iValue;
+        iInputBoostLeft  = iValue;
+        iInputBoostRight = iValue;
+    }
+
+    if ( GetNumericIniSet ( IniXMLDocument, "client", "inputboostleft", 1, 10, iValue ) )
+    {
+        iInputBoostLeft = iValue;
+    }
+
+    if ( GetNumericIniSet ( IniXMLDocument, "client", "inputboostright", 1, 10, iValue ) )
+    {
+        iInputBoostRight = iValue;
     }
 
     if ( GetFlagIniSet ( IniXMLDocument, "client", "enablefeedbackdetection", bValue ) )
@@ -599,7 +610,8 @@ void CClientSettings::WriteSettingsToXML ( QDomDocument& IniXMLDocument )
     SetNumericIniSet ( IniXMLDocument, "client", "newclientlevel", iNewClientFaderLevel );
 
     // input boost
-    SetNumericIniSet ( IniXMLDocument, "client", "inputboost", iInputBoost );
+    SetNumericIniSet ( IniXMLDocument, "client", "inputboostleft", iInputBoostLeft );
+    SetNumericIniSet ( IniXMLDocument, "client", "inputboostright", iInputBoostRight );
 
     // feedback detection
     SetFlagIniSet ( IniXMLDocument, "client", "enablefeedbackdetection", bEnableFeedbackDetection );
