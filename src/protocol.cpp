@@ -952,15 +952,23 @@ bool CProtocol::EvaluateJitBufMes ( const CVector<uint8_t>& vecData )
     // extract jitter buffer size
     const int iData = static_cast<int> ( GetValFromStream ( vecData, iPos, 2 ) );
 
-    if ( ( ( iData < MIN_NET_BUF_SIZE_NUM_BL ) || ( iData > MAX_NET_BUF_SIZE_NUM_BL ) ) && ( iData != AUTO_NET_BUF_SIZE_FOR_PROTOCOL ) )
+    if ( iData == 0 )
     {
-        return true; // return error code
+        // invoke message action
+        emit JittBufSizeError();
+
+        return false; // no error
     }
 
-    // invoke message action
-    emit ChangeJittBufSize ( iData );
+    if ( ( ( iData >= MIN_NET_BUF_SIZE_NUM_BL ) && ( iData <= MAX_NET_BUF_SIZE_NUM_BL ) ) || ( iData == AUTO_NET_BUF_SIZE_FOR_PROTOCOL ) )
+    {
+        // invoke message action
+        emit ChangeJittBufSize ( iData );
 
-    return false; // no error
+        return false; // no error
+    }
+
+    return true; // return error code
 }
 
 void CProtocol::CreateReqJitBufMes() { CreateAndSendMessage ( PROTMESSID_REQ_JITT_BUF_SIZE, CVector<uint8_t> ( 0 ) ); }

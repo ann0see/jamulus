@@ -583,6 +583,9 @@ void CServer::OnNewConnection ( int iChID, int iTotChans, CHostAddress RecHostAd
     // compression properties, etc.)
     vecChannels[iChID].CreateReqNetwTranspPropsMes();
 
+    // Inform the client that we support ServerJittBuffError by sending an JuttBuffError
+    vecChannels[iChID].CreateJitBufMes ( 0 );
+
     // this is a new connection, query the jitter buffer size we shall use
     // for this client (note that at the same time on a new connection the
     // client sends the jitter buffer size by default but maybe we have

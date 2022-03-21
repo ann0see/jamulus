@@ -29,6 +29,8 @@ CChannel::CChannel ( const bool bNIsServer ) :
     vecfGains ( MAX_NUM_CHANNELS, 1.0f ),
     vecfPannings ( MAX_NUM_CHANNELS, 0.5f ),
     iCurSockBufNumFrames ( INVALID_INDEX ),
+    bServerJittBuffError ( false ),
+    bClientJittBuffError ( false ),
     bDoAutoSockBufSize ( true ),
     bUseSequenceNumber ( false ), // this is important since in the client we reset on Channel.SetEnable ( false )
     iSendSequenceNumber ( 0 ),
@@ -67,6 +69,7 @@ qRegisterMetaType<CHostAddress> ( "CHostAddress" );
 
     QObject::connect ( &Protocol, &CProtocol::MessReadyForSending, this, &CChannel::OnSendProtMessage );
 
+    QObject::connect ( &Protocol, &CProtocol::JittBufSizeError, this, &CChannel::OnJittBufSizeError );
     QObject::connect ( &Protocol, &CProtocol::ChangeJittBufSize, this, &CChannel::OnJittBufSizeChange );
 
     QObject::connect ( &Protocol, &CProtocol::ReqJittBufSize, this, &CChannel::ReqJittBufSize );
@@ -125,7 +128,9 @@ void CChannel::SetEnable ( const bool bNEnStat )
     QMutexLocker locker ( &Mutex );
 
     // set internal parameter
-    bIsEnabled = bNEnStat;
+    bIsEnabled           = bNEnStat;
+    bServerJittBuffError = false;
+    bClientJittBuffError = false;
 
     // The support for the packet sequence number must be reset if the client
     // disconnects from a server since we do not yet know if the next server we
@@ -371,6 +376,19 @@ void CChannel::OnSendProtMessage ( CVector<uint8_t> vecMessage )
     }
 }
 
+void CChannel::OnJittBufSizeError()
+{
+    // JitterBuffer under-run error message from the other side...
+    if ( bIsServer )
+    {
+        bClientJittBuffError = true;
+    }
+    else
+    {
+        bServerJittBuffError = true;
+    }
+}
+
 void CChannel::OnJittBufSizeChange ( int iNewJitBufSize )
 {
     // for server apply setting, for client emit message
@@ -602,50 +620,67 @@ EGetDataStat CChannel::GetData ( CVector<uint8_t>& vecbyData, const int iNumByte
 {
     EGetDataStat eGetStatus;
 
-    MutexSocketBuf.lock();
     {
-        // the socket access must be inside a mutex
-        const bool bSockBufState = SockBuf.Get ( vecbyData, iNumBytes );
+        MutexSocketBuf.lock();
 
-        // decrease time-out counter
-        if ( iConTimeOut > 0 )
         {
-            // subtract the number of samples of the current block since the
-            // time out counter is based on samples not on blocks (definition:
-            // always one atomic block is get by using the GetData() function
-            // where the atomic block size is "iAudioFrameSizeSamples")
-            iConTimeOut -= iAudioFrameSizeSamples;
+            // the socket access must be inside a mutex
+            const bool bSockBufState = SockBuf.Get ( vecbyData, iNumBytes );
 
-            if ( iConTimeOut <= 0 )
+            if ( !bSockBufState )
             {
-                // channel is just disconnected
-                eGetStatus  = GS_CHAN_NOW_DISCONNECTED;
-                iConTimeOut = 0; // make sure we do not have negative values
-
-                // reset network transport properties
-                ResetNetworkTransportProperties();
-            }
-            else
-            {
-                if ( bSockBufState )
+                // JitterBuffer under-run error
+                if ( bIsServer )
                 {
-                    // everything is ok
-                    eGetStatus = GS_BUFFER_OK;
+                    bServerJittBuffError = true;
                 }
                 else
                 {
-                    // channel is not yet disconnected but no data in buffer
-                    eGetStatus = GS_BUFFER_UNDERRUN;
+                    bClientJittBuffError = true;
                 }
             }
+
+            // decrease time-out counter
+            if ( iConTimeOut > 0 )
+            {
+                // subtract the number of samples of the current block since the
+                // time out counter is based on samples not on blocks (definition:
+                // always one atomic block is get by using the GetData() function
+                // where the atomic block size is "iAudioFrameSizeSamples")
+                iConTimeOut -= iAudioFrameSizeSamples;
+
+                if ( iConTimeOut <= 0 )
+                {
+                    // channel is just disconnected
+                    eGetStatus  = GS_CHAN_NOW_DISCONNECTED;
+                    iConTimeOut = 0; // make sure we do not have negative values
+
+                    // reset network transport properties
+                    ResetNetworkTransportProperties();
+                }
+                else
+                {
+                    if ( bSockBufState )
+                    {
+                        // everything is ok
+                        eGetStatus = GS_BUFFER_OK;
+                    }
+                    else
+                    {
+                        // channel is not yet disconnected but no data in buffer
+                        eGetStatus = GS_BUFFER_UNDERRUN;
+                    }
+                }
+            }
+            else
+            {
+                // channel is disconnected
+                eGetStatus = GS_CHAN_NOT_CONNECTED;
+            }
         }
-        else
-        {
-            // channel is disconnected
-            eGetStatus = GS_CHAN_NOT_CONNECTED;
-        }
+
+        MutexSocketBuf.unlock();
     }
-    MutexSocketBuf.unlock();
 
     // in case we are just disconnected, we have to fire a message
     if ( eGetStatus == GS_CHAN_NOW_DISCONNECTED )
@@ -655,6 +690,10 @@ EGetDataStat CChannel::GetData ( CVector<uint8_t>& vecbyData, const int iNumByte
 
         // emit message
         emit Disconnected();
+    }
+    else if ( ( eGetStatus == GS_BUFFER_UNDERRUN ) && bIsServer )
+    {
+        Protocol.CreateJitBufMes ( 0 );
     }
 
     return eGetStatus;
