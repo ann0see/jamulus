@@ -71,7 +71,10 @@ CSound::CSound ( void ( *fpProcessCallback ) ( CVector<int16_t>& psData, void* a
     memset ( bufferInfos, 0, sizeof bufferInfos );
 
     // Set my properties in CSoundbase:
-    soundProperties.bHasSetupDialog       = true;
+    soundProperties.bHasSetupDialog = true;
+    // Reset default texts according new soundProperties
+    soundProperties.setDefaultTexts();
+    // Set specific texts according this CSound implementation
     soundProperties.strSetupButtonText    = tr ( "ASIO Device Settings" );
     soundProperties.strSetupButtonToolTip = tr ( "Opens the driver settings when available..." ) + "<br>" +
                                             tr ( "Note: %1 currently only supports devices with a sample rate of %2 Hz. "

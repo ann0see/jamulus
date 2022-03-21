@@ -43,7 +43,10 @@ CSound::CSound ( void ( *theProcessCallback ) ( CVector<short>& psData, void* ar
     soundProperties.bHasAudioDeviceSelection   = false;
     soundProperties.bHasInputChannelSelection  = false;
     soundProperties.bHasOutputChannelSelection = false;
-    soundProperties.bHasInputGainSelection     = false;
+    soundProperties.bHasInputGainSelection     = true;
+    // Update default property texts according selected properties
+    soundProperties.setDefaultTexts();
+    // Set any property text diversions here...
 
     pSound = this;
 }
@@ -168,41 +171,126 @@ void CSound::warnIfNotLowLatency ( oboe::ManagedStream& stream, QString streamNa
     Q_UNUSED ( streamName );
 }
 
-bool CSound::start()
+oboe::DataCallbackResult CSound::onAudioInput ( oboe::AudioStream* oboeStream, void* audioData, int32_t numFrames )
 {
-    if ( !IsStarted() )
+    mStats.in_callback_calls++;
+
+    int32_t  channelCount = oboeStream->getChannelCount();
+
+    if (channelCount != PROT_NUM_IN_CHANNELS )
     {
-        if ( openStreams() )
-        {
-            audioBuffer.Init ( iDeviceBufferSize * 2 );
-            mOutBuffer.Init ( iDeviceBufferSize * 2 * RING_FACTOR );
+        qDebug() << "Received " << channelCount << " Channels, expecting " << PROT_NUM_IN_CHANNELS;
 
-            if ( mRecordingStream->requestStart() == oboe::Result::OK )
-            {
-                if ( mPlayStream->requestStart() == oboe::Result::OK )
-                {
-                    return true;
-                }
-
-                mRecordingStream->requestStop();
-            }
-        }
-
-        closeStreams();
-        return false;
+        return oboe::DataCallbackResult::Stop;
     }
 
-    return true;
+    if ( numFrames != (int32_t) iDeviceBufferSize )
+    {
+        qDebug() << "Received " << numFrames << " Frames, expecting " << iDeviceBufferSize;
+
+        return oboe::DataCallbackResult::Stop;
+    }
+
+    // First things first, we need to discard the input queue a little for 500ms or so
+    if ( mCountCallbacksToDrain > 0 )
+    {
+        // discard the input buffer
+        int32_t numBytes = numFrames * oboeStream->getBytesPerFrame();
+
+        memset ( audioData, 0 /* value */, numBytes );
+
+        mCountCallbacksToDrain--;
+    }
+
+    // We're good to start recording now
+    // Take the data from the recording device output buffer and move
+    // it to the vector ready to send up to the server
+    //
+    // According to the format that we've set on initialization, audioData
+    // is an array of int16_t
+    //
+    int16_t* intData = static_cast<int16_t*> ( audioData );
+
+    // Copy recording data to internal vector
+    memcpy ( audioBuffer.data(), intData, sizeof ( int16_t ) * numFrames * channelCount);
+
+    if ( inputChannelsGain[0] > 1 )
+    {
+        int16_t  gain   = inputChannelsGain[0];
+        int16_t* buffer = audioBuffer.data();
+
+        for ( int32_t i = 0; i < numFrames; i++ )
+        {
+            *buffer *= gain;
+            buffer += channelCount;
+        }
+    }
+
+    if ( inputChannelsGain[1] > 1 )
+    {
+        int16_t  gain   = inputChannelsGain[1];
+        int16_t* buffer = audioBuffer.data();
+        buffer++; // 2nd channel !
+
+        for ( int32_t i = 0; i < numFrames; i++ )
+        {
+            *buffer *= gain;
+            buffer += channelCount;
+        }
+    }
+
+    mStats.frames_in += numFrames;
+
+    // Tell parent class that we've put some data ready to send to the server
+    processCallback ( audioBuffer );
+
+    uint32_t bufferSize = (iDeviceBufferSize * PROT_NUM_IN_CHANNELS);
+
+    // pgScorpio: AFAIK the audioBuffer is never resized on a processCallback !
+    // We can only copy data if we have enough data to copy, otherwise fill with silence
+    if ( audioBuffer.size() < bufferSize )
+    {
+        // prime output stream buffer with silence
+        audioBuffer.resize (bufferSize, 0 );
+    }
+
+    mOutBuffer.Put ( audioBuffer, bufferSize);
+
+    if ( mOutBuffer.isFull() )
+    {
+        mStats.ring_overrun++;
+    }
+
+    return oboe::DataCallbackResult::Continue;
 }
 
-bool CSound::stop()
+oboe::DataCallbackResult CSound::onAudioOutput ( oboe::AudioStream* oboeStream, void* audioData, int32_t numFrames )
 {
-    if ( IsStarted() )
+    mStats.frames_out += numFrames;
+    mStats.out_callback_calls++;
+
+    QMutexLocker locker ( &mutexAudioProcessCallback );
+
+    std::size_t      to_write = (std::size_t) numFrames * oboeStream->getChannelCount();
+    std::size_t      count    = std::min ( (std::size_t) mOutBuffer.GetAvailData(), to_write );
+    CVector<int16_t> outBuffer ( count );
+
+    mOutBuffer.Get ( outBuffer, count );
+
+    //
+    // According to the format that we've set on initialization, audioData
+    // is an array of int16_t
+    //
+
+    memcpy ( audioData, outBuffer.data(), count * sizeof ( int16_t ) );
+
+    if ( to_write > count )
     {
-        closeStreams();
+        mStats.frames_filled_out += ( to_write - count );
+        memset ( ( (int16_t*) audioData ) + count, 0, ( to_write - count ) * sizeof ( int16_t ) );
     }
 
-    return true;
+    return oboe::DataCallbackResult::Continue;
 }
 
 // This is the main callback method for when an audio stream is ready to publish data to an output stream
@@ -234,98 +322,7 @@ oboe::DataCallbackResult CSound::onAudioReady ( oboe::AudioStream* oboeStream, v
     return oboe::DataCallbackResult::Continue;
 }
 
-oboe::DataCallbackResult CSound::onAudioInput ( oboe::AudioStream* oboeStream, void* audioData, int32_t numFrames )
-{
-    mStats.in_callback_calls++;
-
-    // First things first, we need to discard the input queue a little for 500ms or so
-    if ( mCountCallbacksToDrain > 0 )
-    {
-        // discard the input buffer
-        int32_t numBytes = numFrames * oboeStream->getBytesPerFrame();
-
-        memset ( audioData, 0 /* value */, numBytes );
-
-        mCountCallbacksToDrain--;
-    }
-
-    // We're good to start recording now
-    // Take the data from the recording device output buffer and move
-    // it to the vector ready to send up to the server
-    //
-    // According to the format that we've set on initialization, audioData
-    // is an array of int16_t
-    //
-    int16_t* intData = static_cast<int16_t*> ( audioData );
-
-    // Copy recording data to internal vector
-    memcpy ( audioBuffer.data(), intData, sizeof ( int16_t ) * numFrames * oboeStream->getChannelCount() );
-
-    if ( numFrames != (int32_t) iDeviceBufferSize )
-    {
-        qDebug() << "Received " << numFrames << " expecting " << iDeviceBufferSize;
-    }
-
-    mStats.frames_in += numFrames;
-
-    // Tell parent class that we've put some data ready to send to the server
-    processCallback ( audioBuffer );
-
-    // The callback has placed in the vector the samples to play
-    addOutputData ( oboeStream->getChannelCount() );
-
-    return oboe::DataCallbackResult::Continue;
-}
-
-void CSound::addOutputData ( int channel_count )
-{
-    QMutexLocker locker ( &mutexAudioProcessCallback );
-
-    // Only copy data if we have data to copy, otherwise fill with silence
-    if ( audioBuffer.empty() )
-    {
-        // prime output stream buffer with silence
-        audioBuffer.resize ( iDeviceBufferSize * channel_count, 0 );
-    }
-
-    mOutBuffer.Put ( audioBuffer, iDeviceBufferSize * channel_count );
-
-    if ( mOutBuffer.isFull() )
-    {
-        mStats.ring_overrun++;
-    }
-}
-
-oboe::DataCallbackResult CSound::onAudioOutput ( oboe::AudioStream* oboeStream, void* audioData, int32_t numFrames )
-{
-    mStats.frames_out += numFrames;
-    mStats.out_callback_calls++;
-
-    QMutexLocker locker ( &mutexAudioProcessCallback );
-
-    std::size_t      to_write = (std::size_t) numFrames * oboeStream->getChannelCount();
-    std::size_t      count    = std::min ( (std::size_t) mOutBuffer.GetAvailData(), to_write );
-    CVector<int16_t> outBuffer ( count );
-
-    mOutBuffer.Get ( outBuffer, count );
-
-    //
-    // According to the format that we've set on initialization, audioData
-    // is an array of int16_t
-    //
-
-    memcpy ( audioData, outBuffer.data(), count * sizeof ( int16_t ) );
-
-    if ( to_write > count )
-    {
-        mStats.frames_filled_out += ( to_write - count );
-        memset ( ( (float*) audioData ) + count, 0, ( to_write - count ) * sizeof ( float ) );
-    }
-
-    return oboe::DataCallbackResult::Continue;
-}
-
-// TODO better handling of stream closing errors (use strErrorList ??)
+// TODO better handling of stream closing errors (use CMsgBoxes::ShowError or strErrorList ??)
 void CSound::onErrorAfterClose ( oboe::AudioStream* oboeStream, oboe::Result result )
 {
     qDebug() << "CSound::onErrorAfterClose";
@@ -334,7 +331,7 @@ void CSound::onErrorAfterClose ( oboe::AudioStream* oboeStream, oboe::Result res
     Q_UNUSED ( result );
 }
 
-// TODO better handling of stream closing errors (use strErrorList ??)
+// TODO better handling of stream closing errors (use CMsgBoxes::ShowError or strErrorList  ??)
 void CSound::onErrorBeforeClose ( oboe::AudioStream* oboeStream, oboe::Result result )
 {
     qDebug() << "CSound::onErrorBeforeClose";
@@ -342,6 +339,10 @@ void CSound::onErrorBeforeClose ( oboe::AudioStream* oboeStream, oboe::Result re
     Q_UNUSED ( oboeStream );
     Q_UNUSED ( result );
 }
+
+//============================================================================
+// CSound::Stats
+//============================================================================
 
 void CSound::Stats::reset()
 {
@@ -358,6 +359,95 @@ void CSound::Stats::log() const
     qDebug() << "Stats: "
              << "frames_in: " << frames_in << ",frames_out: " << frames_out << ",frames_filled_out: " << frames_filled_out
              << ",in_callback_calls: " << in_callback_calls << ",out_callback_calls: " << out_callback_calls << ",ring_overrun: " << ring_overrun;
+}
+
+//============================================================================
+// CSoundbase virtuals Helpers:
+//============================================================================
+
+bool CSound::setBaseValues()
+{
+    createDeviceList();
+
+    clearDeviceInfo();
+
+    // Set the input channel names:
+    strInputChannelNames.append ( "input left" );
+    strInputChannelNames.append ( "input right" );
+    lNumInChan = 2;
+
+    // Set added input channels: ( Always 0 for oboe )
+    addAddedInputChannelNames();
+
+    // Set the output channel names:
+    strOutputChannelNames.append ( "output left" );
+    strOutputChannelNames.append ( "output right" );
+    lNumOutChan = 2;
+
+    // Select input and output channels:
+    resetChannelMapping();
+    // TODO: ChannelMapping from inifile!
+
+    // Set the In/Out Latency:
+    fInOutLatencyMs = 0.0;
+    // TODO !!!
+
+    return true;
+}
+
+bool CSound::checkCapabilities()
+{
+    // TODO ???
+    //  For now anything is OK
+    return true;
+}
+
+//============================================================================
+// CSoundBase virtuals:
+//============================================================================
+
+long CSound::createDeviceList ( bool bRescan )
+{
+    Q_UNUSED ( bRescan );
+
+    strDeviceNames.clear();
+    strDeviceNames.append ( SystemDriverTechniqueName() );
+
+    // Just one device, so we force selection !
+    iCurrentDevice = 0;
+
+    return lNumDevices = strDeviceNames.size();
+}
+
+bool CSound::checkDeviceChange ( CSoundBase::tDeviceChangeCheck mode, int iDriverIndex ) // Open device sequence handling....
+{
+    if ((iDriverIndex < 0) || (iDriverIndex >= lNumDevices))
+    {
+        return false;
+    }
+
+    switch ( mode )
+    {
+    case CSoundBase::tDeviceChangeCheck::CheckOpen:
+        // We have no other choice than trying to start the device already...
+        Stop();
+        iCurrentDevice = iDriverIndex;
+        return Start();
+
+    case CSoundBase::tDeviceChangeCheck::CheckCapabilities:
+        return checkCapabilities();
+
+    case CSoundBase::tDeviceChangeCheck::Activate:
+        return setBaseValues();
+
+    case CSoundBase::tDeviceChangeCheck::Abort:
+        Stop();
+        setBaseValues(); // Still set Base values, since we still might have changed device !
+        return true;
+
+    default:
+        return false;
+    }
 }
 
 unsigned int CSound::getDeviceBufferSize ( unsigned int iDesiredBufferSize )
@@ -382,89 +472,45 @@ unsigned int CSound::getDeviceBufferSize ( unsigned int iDesiredBufferSize )
 
 void CSound::closeCurrentDevice() // Closes the current driver and Clears Device Info
 {
-    // nothing to close on android
-}
-
-long CSound::createDeviceList ( bool bRescan )
-{
-    Q_UNUSED ( bRescan );
-
-    strDeviceNames.clear();
-    strDeviceNames.append ( SystemDriverTechniqueName() );
-
-    // Just one device, so we force selection !
-    iCurrentDevice = 0;
-
-    return lNumDevices = 1;
-}
-
-bool CSound::setBaseValues()
-{
-    createDeviceList();
-
+    Stop();
     clearDeviceInfo();
-
-    // Set the input channel names:
-    strInputChannelNames.append ( "input left" );
-    strInputChannelNames.append ( "input right" );
-    lNumInChan = 2;
-
-    // Set added input channels: ( Always 0 for oboe )
-    addAddedInputChannelNames();
-
-    // Set the output channel names:
-    strOutputChannelNames.append ( "output left" );
-    strOutputChannelNames.append ( "output right" );
-    lNumOutChan = 2;
-
-    // Select input and output channels:
-    resetChannelMapping();
-
-    // Set the In/Out Latency:
-    fInOutLatencyMs = 0.0;
-    // TODO !!!
-
-    return true;
 }
 
-bool CSound::checkCapabilities()
+bool CSound::start()
 {
-    // TODO ???
-    //  For now anything is OK
-    return true;
-}
-
-// TODO: ChannelMapping from inifile!
-bool CSound::checkDeviceChange ( CSoundBase::tDeviceChangeCheck mode, int iDriverIndex ) // Open device sequence handling....
-{
-    // We have just one device !
-    if ( iDriverIndex != 0 )
+    if ( !IsStarted() )
     {
-        return false;
-    }
-
-    switch ( mode )
-    {
-    case CSoundBase::tDeviceChangeCheck::CheckOpen:
-        Stop();
-        strErrorList.clear();
-        if ( !Start() )
+        if ( openStreams() )
         {
-            return false;
+            audioBuffer.Init ( iDeviceBufferSize * 2 );
+            mOutBuffer.Init ( iDeviceBufferSize * 2 * RING_FACTOR );
+            mCountCallbacksToDrain = NUMCALLBACKSTODRAIN;
+
+            if ( mRecordingStream->requestStart() == oboe::Result::OK )
+            {
+                if ( mPlayStream->requestStart() == oboe::Result::OK )
+                {
+                    return true;
+                }
+
+                mRecordingStream->requestStop();
+            }
         }
-        return true;
 
-    case CSoundBase::tDeviceChangeCheck::CheckCapabilities:
-        return checkCapabilities();
-
-    case CSoundBase::tDeviceChangeCheck::Activate:
-        return setBaseValues();
-
-    case CSoundBase::tDeviceChangeCheck::Abort:
-        setBaseValues(); // Still set Base values, since there is no other device !
-        return true;
-
-    default:
+        closeStreams();
         return false;
     }
+
+    return true;
 }
+
+bool CSound::stop()
+{
+    if ( IsStarted() )
+    {
+        closeStreams();
+    }
+
+    return true;
+}
+

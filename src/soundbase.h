@@ -154,6 +154,8 @@ protected:
     bool bHasOutputChannelSelection;
     bool bHasInputGainSelection;
 
+    void setDefaultTexts();
+
     CSoundProperties(); // Sets the default values for CSoundProperties,
                         // Constructor of CSound should set modified values if needed.
 
@@ -209,12 +211,6 @@ public:
     {
         // Nothing to delete here, but since this is a base class there MUST be a public VIRTUAL destructor!
     }
-
-protected:
-    // Message boxes:
-    void showError ( QString strError );
-    void showWarning ( QString strWarning );
-    void showInfo ( QString strInfo );
 
 protected:
     QMutex mutexAudioProcessCallback; // Use in audio processing callback and when changing channel selections !
@@ -276,12 +272,14 @@ protected:
     long        lNumDevices;    // The number of devices available for selection.
     QStringList strDeviceNames; // Should be a lNumDevices long list of devicenames
 
+    int iCurrentDevice;
+
 protected:
     // Device Info: (Should be set by the virtual function activateNewDevice())
-    long  lNumInChan;
-    long  lNumAddedInChan; // number of fictive input channels added for i.e. mixed input channels
-    long  lNumOutChan;
-    int   iCurrentDevice;
+    long lNumInChan;
+    long lNumAddedInChan; // number of fictive input channels added for i.e. mixed input channels
+    long lNumOutChan;
+
     float fInOutLatencyMs;
 
     QStringList strInputChannelNames;  // Should be (lNumInChan + lNumAddedInChan) long
@@ -309,7 +307,7 @@ protected:
     // Misc.
     QStringList strErrorList; // List with errorstrings to be returned by
 
-    bool addError ( const QString& strError );
+    QString getErrorString();
 
 protected:
     // Midi handling
@@ -367,54 +365,47 @@ public:
 
     bool Start();
     bool Stop();
+    bool Restart();
 
     inline const QString& SystemDriverTechniqueName() const { return strDriverTechniqueName; }
 
     inline bool IsStarted() const { return bStarted; }
     inline bool IsActive() const { return bStarted && bActive; }
 
-    bool    GetErrorStringList ( QStringList& errorStringList );
-    QString GetErrorString();
-
     int GetNumDevices() const { return strDeviceNames.count(); }
 
     QStringList GetDeviceNames();
-    QString     GetDeviceName ( const int index ) { return strDeviceNames[index]; }
+    QString     GetDeviceName ( const int index );
     QString     GetCurrentDeviceName();
 
     int GetCurrentDeviceIndex() const { return iCurrentDevice; }
     int GetIndexOfDevice ( const QString& strDeviceName );
 
     int        GetNumInputChannels();
-    inline int GetNumOutputChannels() { return lNumOutChan; }
+    inline int GetNumOutputChannels() const { return lNumOutChan; }
 
     QString GetInputChannelName ( const int index );
     QString GetOutputChannelName ( const int index );
 
-    void SetLeftInputChannel ( const int iNewChan );
-    void SetRightInputChannel ( const int iNewChan );
+    void       SetLeftInputChannel ( const int iNewChan );
+    inline int GetLeftInputChannel() const { return selectedInputChannels[0]; }
 
-    void SetLeftOutputChannel ( const int iNewChan );
+    void       SetRightInputChannel ( const int iNewChan );
+    inline int GetRightInputChannel() const { return selectedInputChannels[1]; }
+
+    void       SetLeftOutputChannel ( const int iNewChan );
+    inline int GetLeftOutputChannel() const { return selectedOutputChannels[0]; }
+
     void SetRightOutputChannel ( const int iNewChan );
+    int  GetRightOutputChannel() const { return selectedOutputChannels[1]; }
 
-    int GetLeftInputChannel() { return selectedInputChannels[0]; }
-    int GetRightInputChannel() { return selectedInputChannels[1]; }
+    int        SetLeftInputGain ( int iGain );
+    inline int GetLeftInputGain() const { return inputChannelsGain[0]; };
 
-    int GetLeftOutputChannel() { return selectedOutputChannels[0]; }
-    int GetRightOutputChannel() { return selectedOutputChannels[1]; }
+    int        SetRightInputGain ( int iGain );
+    inline int GetRightInputGain() const { return inputChannelsGain[1]; };
 
-    float GetInOutLatencyMs() { return fInOutLatencyMs; }
-
-    int SetInputGain ( int channelIndex, int iGain );
-    int SetInputGain ( int iGain ); // Sets gain for all protocol input channels
-
-    //  inline int GetInputGain() { return inputChannelsGain[0]; };
-    inline int GetInputGain ( int channelIndex )
-    {
-        if ( ( channelIndex >= 0 ) && ( channelIndex < PROT_NUM_IN_CHANNELS ) )
-            return inputChannelsGain[channelIndex];
-        return 0;
-    };
+    inline float GetInOutLatencyMs() const { return fInOutLatencyMs; }
 
     bool OpenDeviceSetup();
 
@@ -425,30 +416,11 @@ public:
     // pgScorpio: Set by name should only be used for selection from name in ini file.
     //            For now bTryAnydriver is only set if there was no device in the inifile (empty string)
     //
-    bool SetDevice ( const QString& strDevName, bool bOpenSetupOnError = false )
-    {
-        QMutexLocker locker ( &mutexDeviceProperties );
-
-        strErrorList.clear();
-        createDeviceList( /* true */ ); // We should always re-create the devicelist when reading the init file
-
-        int iDriverIndex = strDevName.isEmpty() ? 0 : strDeviceNames.indexOf ( strDevName );
-
-        return selectDevice ( iDriverIndex, bOpenSetupOnError,
-                              strDevName.isEmpty() ); // Calls openDevice and checkDeviceCapabilities
-    }
-
-    bool SetDevice ( int iDriverIndex, bool bOpenSetupOnError = false )
-    {
-        QMutexLocker locker ( &mutexDeviceProperties );
-
-        strErrorList.clear();
-        createDeviceList();                                      // Only create devicelist if neccesary
-        return selectDevice ( iDriverIndex, bOpenSetupOnError ); // Calls openDevice and checkDeviceCapabilities
-    }
+    bool SetDevice ( const QString& strDevName, bool bOpenSetupOnError = false );
+    bool SetDevice ( int iDriverIndex, bool bOpenSetupOnError = false );
 
     // Restart device after settings change...
-    bool ResetDevice ( bool bOpenSetupOnError = false );
+    bool ReloadDevice ( bool bOpenSetupOnError = false );
 
     unsigned int SetBufferSize ( unsigned int iDesiredBufferSize );
     bool         BufferSizeSupported ( unsigned int iDesiredBufferSize );
@@ -473,17 +445,15 @@ public:
     public:
         CSoundStopper ( CSoundBase& sound );
         ~CSoundStopper();
-        bool Start();
-        bool Stop();
         bool WasStarted() { return bSoundWasStarted; }
         bool WasActive() { return bSoundWasActive; }
-        bool Aborted() { return bAborted; }
+        bool IsAborted() { return bAborted; }
 
-        bool Abort()
+        bool Abort() // Do not Restart!
         {
             bAborted = true;
             return bSoundWasStarted;
-        } // Do not Restart!
+        }
     };
 
 protected:
@@ -515,13 +485,19 @@ protected:
     //============================================================================
     // Virtual interface to CSoundBase:
     //============================================================================
-    virtual void onChannelSelectionChanged(){}; // Needed on macOS
+    // onChannelSelectionChanged() is only needed when selectedInputChannels[]/selectedOutputChannels[] can't be used in the process callback,
+    // but normally just restarting like:
+    /*
+    void onChannelSelectionChanged() { Restart(); }
+    */
+    // should do the trick then
+    virtual void onChannelSelectionChanged(){};
 
     virtual long         createDeviceList ( bool bRescan = false )                       = 0; // Fills strDeviceNames returns lNumDevices
     virtual bool         checkDeviceChange ( tDeviceChangeCheck mode, int iDriverIndex ) = 0; // Performs the different actions for a device change
     virtual unsigned int getDeviceBufferSize ( unsigned int iDesiredBufferSize ) = 0; // returns the nearest possible buffersize of selected device
     virtual void         closeCurrentDevice()                                    = 0; // Closes the current driver and Clears Device Info
-    virtual bool         openDeviceSetup()                                       = 0; // { return false; }
-    virtual bool         start()                                                 = 0; // Returns true if started, false if stopped
-    virtual bool         stop()                                                  = 0; // Returns true if stopped, false if still (partly) running
+    virtual bool         openDeviceSetup() = 0; // Opens the device setup dialog. Returns false if a device setup dialog could not be opened.
+    virtual bool         start()           = 0; // Returns true if started, false if stopped
+    virtual bool         stop()            = 0; // Returns true if stopped, false if still (partly) running
 };

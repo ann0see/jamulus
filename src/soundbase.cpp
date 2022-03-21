@@ -101,60 +101,44 @@ int64_t CSoundBase::Flip64Bits ( const int64_t iIn )
 // Messageboxes: (pgScorpio: TODO Fing global solution)
 //============================================================================
 
-void CSoundBase::showError ( QString strError )
-{
-    if ( !strError.isEmpty() )
-    {
-#ifndef HEADLESS
-        QString strTitle = APP_NAME;
-        if ( strClientName.size() )
-        {
-            strTitle += " ";
-            strTitle += strClientName;
-        }
-
-        QMessageBox::critical ( NULL, strTitle + ": " + tr ( "Error" ), strError, tr ( "Ok" ), nullptr );
-#endif
-    }
-}
-
-void CSoundBase::showWarning ( QString strWarning )
-{
-    if ( !strWarning.isEmpty() )
-    {
-#ifndef HEADLESS
-        QString strTitle = APP_NAME;
-        if ( strClientName.size() )
-        {
-            strTitle += " ";
-            strTitle += strClientName;
-        }
-
-        QMessageBox::warning ( NULL, strTitle + ": " + tr ( "Warning" ), strWarning, tr ( "Ok" ), nullptr );
-#endif
-    }
-}
-
-void CSoundBase::showInfo ( QString strInfo )
-{
-    if ( !strInfo.isEmpty() )
-    {
-#ifndef HEADLESS
-        QString strTitle = APP_NAME;
-        if ( strClientName.size() )
-        {
-            strTitle += " ";
-            strTitle += strClientName;
-        }
-
-        QMessageBox::information ( NULL, strTitle + ": " + tr ( "Information" ), strInfo, tr ( "Ok" ), nullptr );
-#endif
-    }
-}
-
 //============================================================================
 // CSoundProperties:
 //============================================================================
+
+void CSoundProperties::setDefaultTexts()
+{
+    // Audio Device:
+    if ( bHasAudioDeviceSelection )
+    {
+        strAudioDeviceWhatsThis      = ( "<b>" + CSoundBase::tr ( "Audio Device" ) + ":</b> " +
+                                    CSoundBase::tr ( "Your audio device (sound card) can be "
+                                                          "selected or using %1. If the selected driver is not valid an error "
+                                                          "message will be shown. " )
+                                        .arg ( APP_NAME ) +
+                                    "<br>" +
+                                    CSoundBase::tr ( "If the driver is selected during an active connection, the connection "
+                                                          "is stopped, the driver is changed and the connection is started again "
+                                                          "automatically." ) );
+        strAudioDeviceAccessibleName = CSoundBase::tr ( "Audio device selector combo box." );
+    }
+    else
+    {
+        strAudioDeviceWhatsThis =
+            ( "<b>" + CSoundBase::tr ( "Audio Device" ) + ":</b> " + CSoundBase::tr ( "The audio device used for %1." ).arg ( APP_NAME ) + "<br>" +
+              CSoundBase::tr ( "This setting cannot be changed." ) );
+        strAudioDeviceAccessibleName = CSoundBase::tr ( "Audio device name." );
+    }
+
+    // Setup Button:
+    strSetupButtonText      = CSoundBase::tr ( "Device Settings" ),
+    strSetupButtonWhatsThis = htmlBold ( CSoundBase::tr ( "Sound card driver settings:" ) ) + htmlNewLine() +
+                              CSoundBase::tr ( "This button opens the driver settings of your sound card. Some drivers "
+                                               "allow you to change buffer settings, and/or let you choose input or outputs of your device(s). "
+                                               "Always make sure to set your Audio Device Sample Rate to 48000Hz (48Khz)."
+                                               "More information can be found on jamulus.io." );
+
+    strSetupButtonAccessibleName = CSoundBase::tr ( "Click this button to open Audio Device Settings" );
+}
 
 CSoundProperties::CSoundProperties() :
     bHasAudioDeviceSelection ( true ),
@@ -163,24 +147,7 @@ CSoundProperties::CSoundProperties() :
     bHasOutputChannelSelection ( true ),
     bHasInputGainSelection ( true )
 {
-    strSetupButtonText      = CSoundBase::tr ( "Device Settings" ),
-    strSetupButtonWhatsThis = htmlBold ( CSoundBase::tr ( "Sound card driver settings:" ) ) + htmlNewLine() +
-                              CSoundBase::tr ( "This opens the driver settings of your sound card. Some drivers "
-                                               "allow you to change buffer settings, others like ASIO4ALL "
-                                               "lets you choose input or outputs of your device(s). "
-                                               "More information can be found on jamulus.io." );
-    strSetupButtonAccessibleName = CSoundBase::tr ( "Device Settings push button" );
-
-    strAudioDeviceWhatsThis      = ( "<b>" + CSoundBase::tr ( "Audio Device" ) + ":</b> " +
-                                CSoundBase::tr ( "Your audio device (sound card) can be "
-                                                      "selected or using %1. If the selected driver is not valid an error "
-                                                      "message will be shown. " )
-                                    .arg ( APP_NAME ) +
-                                "<br>" +
-                                CSoundBase::tr ( "If the driver is selected during an active connection, the connection "
-                                                      "is stopped, the driver is changed and the connection is started again "
-                                                      "automatically." ) );
-    strAudioDeviceAccessibleName = CSoundBase::tr ( "Sound card device selector combo box" );
+    setDefaultTexts();
 }
 
 //============================================================================
@@ -234,21 +201,9 @@ void CSoundBase::OnTimerCheckActive()
     if ( !bActive )
     {
         emit soundActiveTimeout();
-        showWarning ( htmlBold ( tr ( "Your audio device is not working correctly." ) ) + htmlNewLine() +
-                      tr ( "Please check your device settings or try another device." ) );
+        CMsgBoxes::ShowWarning ( htmlBold ( tr ( "Your audio device is not working correctly." ) ) + htmlNewLine() +
+                                 tr ( "Please check your device settings or try another device." ) );
     }
-}
-
-bool CSoundBase::addError ( const QString& strError )
-{
-    if ( !strError.isEmpty() )
-    {
-        strErrorList.append ( strError );
-
-        return true;
-    }
-
-    return ( strErrorList.count() > 0 );
 }
 
 void CSoundBase::clearDeviceInfo()
@@ -375,24 +330,7 @@ long CSoundBase::addAddedInputChannelNames()
 // Public Interface to CClient:
 //============================================================================
 
-bool CSoundBase::GetErrorStringList ( QStringList& errorStringList )
-{
-    if ( strErrorList.count() )
-    {
-        errorStringList = strErrorList;
-        strErrorList.clear();
-
-        return true;
-    }
-    else
-    {
-        errorStringList.clear();
-
-        return false;
-    }
-}
-
-QString CSoundBase::GetErrorString()
+QString CSoundBase::getErrorString()
 {
     QString str ( strErrorList.join ( htmlNewLine() ) );
     strErrorList.clear();
@@ -408,6 +346,13 @@ QStringList CSoundBase::GetDeviceNames()
     QMutexLocker locker ( &mutexDeviceProperties );
 
     return strDeviceNames;
+}
+
+QString CSoundBase::GetDeviceName ( const int index )
+{
+    QMutexLocker locker ( &mutexDeviceProperties );
+
+    return ( ( index >= 0 ) && ( index < strDeviceNames.length() ) ) ? strDeviceNames[index] : QString();
 }
 
 QString CSoundBase::GetCurrentDeviceName()
@@ -567,7 +512,7 @@ void CSoundBase::SetRightOutputChannel ( const int iNewChan )
     }
 }
 
-int CSoundBase::SetInputGain ( int iGain )
+int CSoundBase::SetLeftInputGain ( int iGain )
 {
     if ( !soundProperties.bHasInputGainSelection )
     {
@@ -585,24 +530,16 @@ int CSoundBase::SetInputGain ( int iGain )
         iGain = DRV_MAX_INPUT_GAIN;
     }
 
-    for ( unsigned int i = 0; i < PROT_NUM_IN_CHANNELS; i++ )
-    {
-        inputChannelsGain[i] = iGain;
-    }
+    inputChannelsGain[0] = iGain;
 
     return iGain;
 }
 
-int CSoundBase::SetInputGain ( int channelIndex, int iGain )
+int CSoundBase::SetRightInputGain ( int iGain )
 {
-    if ( ( channelIndex < 0 ) || ( channelIndex >= PROT_NUM_IN_CHANNELS ) )
-    {
-        return 0;
-    }
-
     if ( !soundProperties.bHasInputGainSelection )
     {
-        return inputChannelsGain[channelIndex];
+        return 1;
     }
 
     QMutexLocker locker ( &mutexAudioProcessCallback ); // get mutex lock
@@ -616,7 +553,7 @@ int CSoundBase::SetInputGain ( int channelIndex, int iGain )
         iGain = DRV_MAX_INPUT_GAIN;
     }
 
-    inputChannelsGain[channelIndex] = iGain;
+    inputChannelsGain[1] = iGain;
 
     return iGain;
 }
@@ -627,8 +564,8 @@ bool CSoundBase::OpenDeviceSetup()
     {
         // With ASIO there always is a setup button, but not all ASIO drivers support a setup dialog!
 
-        showInfo ( htmlBold ( tr ( "This audio device does not support setup from jamulus." ) ) + htmlNewLine() +
-                   tr ( "Check the device manual to see how you can check and change it's settings." ) );
+        CMsgBoxes::ShowInfo ( htmlBold ( tr ( "This audio device does not support setup from jamulus." ) ) + htmlNewLine() +
+                              tr ( "Check the device manual to see how you can check and change it's settings." ) );
         return false;
     }
 
@@ -723,7 +660,7 @@ bool CSoundBase::selectDevice ( int iDriverIndex, bool bOpenDriverSetup, bool bT
                         QMessageBox confirm ( nullptr );
                         confirm.setIcon ( QMessageBox::Warning );
                         confirm.setWindowTitle ( QString ( APP_NAME ) + "-" + tr ( "Warning" ) );
-                        confirm.setText ( GetErrorString() );
+                        confirm.setText ( getErrorString() );
                         confirm.addButton ( QMessageBox::Retry );
                         confirm.addButton ( QMessageBox::Abort );
                         confirm.exec();
@@ -807,7 +744,7 @@ bool CSoundBase::selectDevice ( int iDriverIndex, bool bOpenDriverSetup, bool bT
             }
             // If there is something in the errorlist, so these are warnings...
             // Show warnings now!
-            showWarning ( GetErrorString() );
+            CMsgBoxes::ShowWarning ( getErrorString() );
             strErrorList.clear();
 
             if ( checkDeviceChange ( tDeviceChangeCheck::Activate, iDriverIndex ) )
@@ -831,7 +768,34 @@ bool CSoundBase::selectDevice ( int iDriverIndex, bool bOpenDriverSetup, bool bT
     return false;
 }
 
-bool CSoundBase::ResetDevice ( bool bOpenSetupOnError )
+bool CSoundBase::SetDevice ( const QString& strDevName, bool bOpenSetupOnError )
+{
+    QMutexLocker locker ( &mutexDeviceProperties );
+
+    strErrorList.clear();
+    createDeviceList( /* true */ ); // We should always re-create the devicelist when reading the init file
+
+    int iDriverIndex = strDevName.isEmpty() ? 0 : strDeviceNames.indexOf ( strDevName );
+
+    if ( selectDevice ( iDriverIndex, bOpenSetupOnError, strDevName.isEmpty() ) ) // Calls openDevice and checkDeviceCapabilities
+    {
+        return true;
+    }
+
+    CMsgBoxes::ShowError ( getErrorString() );
+    return false;
+}
+
+bool CSoundBase::SetDevice ( int iDriverIndex, bool bOpenSetupOnError )
+{
+    QMutexLocker locker ( &mutexDeviceProperties );
+
+    strErrorList.clear();
+    createDeviceList();                                      // Only create devicelist if neccesary
+    return selectDevice ( iDriverIndex, bOpenSetupOnError ); // Calls openDevice and checkDeviceCapabilities
+}
+
+bool CSoundBase::ReloadDevice ( bool bOpenSetupOnError )
 {
     int  iWasDevice  = iCurrentDevice;
     bool bWasStarted = IsStarted();
@@ -1090,10 +1054,10 @@ bool CSoundBase::Start()
 
     _onStopped();
 
-    QString strError = GetErrorString();
+    QString strError = getErrorString();
     if ( strError.size() )
     {
-        showError ( strError );
+        CMsgBoxes::ShowError ( strError );
     }
 
     return false;
@@ -1111,10 +1075,21 @@ bool CSoundBase::Stop()
     // so restart active check
     _onStarted();
 
-    QString strError = GetErrorString();
+    QString strError = getErrorString();
     if ( strError.size() )
     {
-        showError ( strError );
+        CMsgBoxes::ShowError ( strError );
+    }
+
+    return false;
+}
+
+bool CSoundBase::Restart()
+{
+    if ( IsStarted() )
+    {
+        Stop();
+        return Start();
     }
 
     return false;

@@ -32,6 +32,8 @@
 #include "buffer.h"
 #include <mutex>
 
+#define NUMCALLBACKSTODRAIN 10;
+
 /* Classes ********************************************************************/
 class CSound : public CSoundBase, public oboe::AudioStreamCallback
 {
@@ -53,15 +55,15 @@ private:
 
     // used to reach a state where the input buffer is
     // empty and the garbage in the first 500ms or so is discarded
-    static constexpr int32_t kNumCallbacksToDrain   = 10;
-    int32_t                  mCountCallbacksToDrain = kNumCallbacksToDrain;
-    Stats                    mStats;
+    int32_t mCountCallbacksToDrain = NUMCALLBACKSTODRAIN;
+
+    Stats   mStats;
 
     oboe::ManagedStream mRecordingStream;
     oboe::ManagedStream mPlayStream;
 
 protected:
-    CBuffer<int16_t> mOutBuffer;
+    CBuffer<int16_t> mOutBuffer; // Temporary ringbuffer for audio output data
 
 public:
     CSound ( void ( *theProcessCallback ) ( CVector<short>& psData, void* arg ), void* theProcessCallbackArg );
@@ -76,20 +78,19 @@ private:
     void warnIfNotLowLatency ( oboe::ManagedStream& stream, QString streamName );
     void closeStream ( oboe::ManagedStream& stream );
 
+protected:
+    // oboe::AudioStreamCallback:
     oboe::DataCallbackResult onAudioInput ( oboe::AudioStream* oboeStream, void* audioData, int32_t numFrames );
     oboe::DataCallbackResult onAudioOutput ( oboe::AudioStream* oboeStream, void* audioData, int32_t numFrames );
 
-    void addOutputData ( int channel_count );
-
-protected:
-    bool setBaseValues();
-    bool checkCapabilities();
-
-protected:
-    // Call backs for Oboe
     virtual oboe::DataCallbackResult onAudioReady ( oboe::AudioStream* oboeStream, void* audioData, int32_t numFrames );
     virtual void                     onErrorAfterClose ( oboe::AudioStream* oboeStream, oboe::Result result );
     virtual void                     onErrorBeforeClose ( oboe::AudioStream* oboeStream, oboe::Result result );
+
+protected:
+    // CSoundBase virtuals helpers:
+    bool setBaseValues();
+    bool checkCapabilities();
 
     //============================================================================
     // Virtual interface to CSoundBase:
@@ -102,7 +103,7 @@ public: // CSoundBase Mandatory functions. (but static functions can't be virtua
     static inline const CSoundProperties& GetProperties() { return pSound->getSoundProperties(); }
 
 protected:
-    // CSoundBase internal
+    // CSoundBase virtuals:
     virtual long         createDeviceList ( bool bRescan = false ); // Fills strDeviceList. Returns number of devices found
     virtual bool         checkDeviceChange ( CSoundBase::tDeviceChangeCheck mode, int iDriverIndex ); // Open device sequence handling....
     virtual unsigned int getDeviceBufferSize ( unsigned int iDesiredBufferSize );

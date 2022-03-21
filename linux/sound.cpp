@@ -200,7 +200,11 @@ void CSound::onShutdownCallback()
 //  CSoundBase:
 //============================================================================
 
-void CSound::closeCurrentDevice() { jackClient.Close(); }
+void CSound::closeCurrentDevice()
+{
+    jackClient.Close();
+    clearDeviceInfo();
+}
 
 unsigned int CSound::getDeviceBufferSize ( unsigned int iDesiredBufferSize )
 {
