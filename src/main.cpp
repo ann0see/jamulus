@@ -55,7 +55,6 @@ char** CCommandlineOptions::appArgv = NULL;
 QDialog* CMsgBoxes::pMainForm       = NULL;
 QString  CMsgBoxes::strMainFormName = APP_NAME;
 
-
 int main ( int argc, char** argv )
 {
     CCommandlineOptions::appArgc = argc;
@@ -947,7 +946,7 @@ int main ( int argc, char** argv )
 #ifndef HEADLESS
         if ( bUseGUI )
         {
-            CMsgBoxes::ShowError( generr.GetErrorText() );
+            CMsgBoxes::ShowError ( generr.GetErrorText() );
         }
         else
 #endif
