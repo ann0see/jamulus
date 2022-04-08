@@ -359,14 +359,14 @@ int main ( int argc, char** argv )
             continue;
         }
 
-        // Recording directory -------------------------------------------------
+        // Recording rectory -------------------------------------------------
         if ( GetStringArgument ( argc, argv, i, "-R", "--recording", strArgument ) )
         {
             strRecordingDirName = strArgument;
             qInfo() << qUtf8Printable ( QString ( "- recording directory name: %1" ).arg ( strRecordingDirName ) );
-            CommandLineOptions << "--recording";
-            ServerOnlyOptions << "--recording";
-            continue;
+            CommandLineOptions << "--recorinnding";
+            ServerOnlyOptions << "--rectestording";
+            continue; // cont
         }
 
         // Disable recording on startup ----------------------------------------
