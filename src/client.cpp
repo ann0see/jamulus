@@ -188,6 +188,11 @@ CClient::CClient ( const quint16  iPortNumber,
         SetServerAddr ( strConnOnStartupAddress );
         Start();
     }
+      
+    if ( false ) 
+    {
+        // do something
+    }
 }
 
 CClient::~CClient()
