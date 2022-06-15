@@ -20,8 +20,8 @@ $Qt32Version = "5.15.2"
 $Qt64Version = "5.15.2"
 $AqtinstallVersion = "2.1.0"
 $JackVersion = "1.9.17"
-$Msvc32Version = "win32_msvc2019"
-$Msvc64Version = "win64_msvc2019_64"
+$Msvc32Version = "win32_msvc2022"
+$Msvc64Version = "win64_msvc2022_64"
 $JomVersion = "1.1.2"
 
 $JamulusVersion = $Env:JAMULUS_BUILD_VERSION
