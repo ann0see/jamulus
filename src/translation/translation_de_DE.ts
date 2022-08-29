@@ -2921,7 +2921,7 @@ Wir haben Deinen Kanal stummgeschaltet und die Funktion &apos;Stummschalten&apos
     <message>
         <location filename="../connectdlg.cpp" line="97"/>
         <source>Holds the current server address. It also stores old addresses in the combo box list.</source>
-        <translation type="unfinished"></translation>
+        <translation>Enthält die aktuelle Serveradresse. Speichert auch alte Adressen in der Combo-box.</translation>
     </message>
     <message>
         <source>The IP address or URL of the server running the </source>
