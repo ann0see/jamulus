@@ -83,9 +83,13 @@ prepare_signing() {
         echo "setting perms"
         sudo security authorizationdb write com.apple.trust-settings.admin allow
         echo "here import"
+        sudo security import CA.cer -k build.keychain
+        echo "trusting..."
         sudo security add-trusted-cert -d -r trustRoot -k build.keychain ./CA.cer
+        sudo security add-trusted-cert -d -r trustRoot -k build.keychain "Jamulus Code-Sign Development CA"
         echo "trustAsRoot"
         sudo security add-trusted-cert -d -r trustAsRoot -k build.keychain ./CA.cer
+        sudo security add-trusted-cert -d -r trustAsRoot -k build.keychain "Jamulus Code-Sign Development CA"
         echo "restore perms"
         sudo security authorizationdb write com.apple.trust-settings.admin < rights
     else
