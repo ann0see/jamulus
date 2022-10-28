@@ -82,7 +82,7 @@ prepare_signing() {
         pwd
         sudo security authorizationdb read com.apple.trust-settings.admin > rights
         sudo security authorizationdb write com.apple.trust-settings.admin allow
-        sudo security add-trusted-cert -d -r trustAsRoot -k /Library/Keychains/System.keychain ./CA.cer
+        sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ./CA.cer
         sudo security authorizationdb write com.apple.trust-settings.admin < rights
     else
         # Tell Github Workflow that we need notarization & stapling (non self signed build)
