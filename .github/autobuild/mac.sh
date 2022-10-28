@@ -46,10 +46,10 @@ prepare_signing() {
     # Check for notarization (not wanted on self signed build)
     if [ -z "${NOTARIZATION_PASSWORD}" ]; then
         echo "Notarization password not found or empty. This suggests we might run a self signed build."
-        if [ false ]; then
-            echo "The CA public key wasn't found. Skipping signing..."
-            return 1
-        fi
+        #if [ false ]; then
+        #    echo "The CA public key wasn't found. Skipping signing..."
+        #    return 1
+        #fi
     fi
 
     echo "Signing was requested and all dependencies are satisfied"
