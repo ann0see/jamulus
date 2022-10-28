@@ -79,13 +79,17 @@ prepare_signing() {
         # bypass any GUI related trusting prompt (https://developer.apple.com/forums/thread/671582)
         echo "Trying to import CA"
         pwd
+        sudo pwd
+        sudo ls
+        ls
+        cat ./CA.cer
         sudo security authorizationdb read com.apple.trust-settings.admin > rights
         echo "setting perms"
         sudo security authorizationdb write com.apple.trust-settings.admin allow
         echo "here import"
         sudo security import CA.cer -k build.keychain
         echo "trusting..."
-        sudo security add-trusted-cert -d -r trustRoot -k build.keychain ./CA.cer
+        sudo security add-trusted-cert -d -r trustRoot -k "/Users/runner/Library/Keychains/build.keychain-db" ./CA.cer
         sudo security add-trusted-cert -d -r trustRoot -k build.keychain "Jamulus Code-Sign Development CA"
         echo "trustAsRoot"
         sudo security add-trusted-cert -d -r trustAsRoot -k build.keychain ./CA.cer
