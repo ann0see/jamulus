@@ -71,6 +71,13 @@ prepare_signing() {
     security import certificate.p12 -k build.keychain -P "${MACOS_CERTIFICATE_PWD}" -T /usr/bin/codesign
     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" build.keychain
 
+    # import CA with auto trust (attention this might be dangerous on non CI as it bypasses the GUI authorization)
+    # see: https://developer.apple.com/forums/thread/671582
+    sudo security authorizationdb read com.apple.trust-settings.admin > /tmp/security.plist
+    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain CA.cer
+    sudo security authorizationdb write com.apple.trust-settings.admin < /tmp/security.plist
+    rm /tmp/security.plist
+
     # Tell Github Workflow that we want signing
     echo "::set-output name=macos_signed::true"
 
