@@ -75,9 +75,11 @@ prepare_signing() {
     echo "::set-output name=macos_signed::true"
 
     # If set, import CA key to allow self signed key
-    if [ "${MACOS_CA_PUBLICKEY:-}" ]; then
+    if [ true ]; then
         # bypass any GUI related trusting prompt (https://developer.apple.com/forums/thread/671582)
         echo "Trying to import CA"
+        ls
+        pwd
         sudo security authorizationdb read com.apple.trust-settings.admin > rights
         sudo security authorizationdb write com.apple.trust-settings.admin allow
         sudo security add-trusted-cert -d -r trustAsRoot -k /Library/Keychains/System.keychain ./CA.cer
