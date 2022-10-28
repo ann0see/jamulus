@@ -58,7 +58,7 @@ prepare_signing() {
     echo "${MACOS_CERTIFICATE}" | base64 --decode > certificate.p12
 
     # If set, put the CA public key into a file
-    if [ "${MACOS_CA_PUBLICKEY:-}" ]; then
+    if [ true ]; then
         echo "${MACOS_CA_PUBLICKEY}" | base64 --decode > CA.cer
     fi
 
