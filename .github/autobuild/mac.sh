@@ -78,11 +78,15 @@ prepare_signing() {
     if [ true ]; then
         # bypass any GUI related trusting prompt (https://developer.apple.com/forums/thread/671582)
         echo "Trying to import CA"
-        ls
         pwd
         sudo security authorizationdb read com.apple.trust-settings.admin > rights
+        echo "setting perms"
         sudo security authorizationdb write com.apple.trust-settings.admin allow
-        sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ./CA.cer
+        echo "here import"
+        sudo security add-trusted-cert -d -r trustRoot -k build.keychain ./CA.cer
+        echo "trustAsRoot"
+        sudo security add-trusted-cert -d -r trustAsRoot -k build.keychain ./CA.cer
+        echo "restore perms"
         sudo security authorizationdb write com.apple.trust-settings.admin < rights
     else
         # Tell Github Workflow that we need notarization & stapling (non self signed build)
