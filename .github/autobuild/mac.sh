@@ -46,7 +46,7 @@ prepare_signing() {
     # Check for notarization (not wanted on self signed build)
     if [ -z "${NOTARIZATION_PASSWORD}" ]; then
         echo "Notarization password not found or empty. This suggests we might run a self signed build."
-        if [ -n "${MACOS_CA_PUBLICKEY:-}" ]; then
+        if [ false ]; then
             echo "The CA public key wasn't found. Skipping signing..."
             return 1
         fi
@@ -82,7 +82,7 @@ prepare_signing() {
         sudo pwd
         sudo ls
         ls
-        cat ./CA.cer
+
         sudo security authorizationdb read com.apple.trust-settings.admin > rights
         echo "setting perms"
         sudo security authorizationdb write com.apple.trust-settings.admin allow
