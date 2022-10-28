@@ -71,22 +71,16 @@ prepare_signing() {
     security import certificate.p12 -k build.keychain -P "${MACOS_CERTIFICATE_PWD}" -T /usr/bin/codesign
     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" build.keychain
 
-    # import CA with auto trust (attention this might be dangerous on non CI as it bypasses the GUI authorization)
-    # see: https://developer.apple.com/forums/thread/671582
-    sudo security authorizationdb read com.apple.trust-settings.admin > /tmp/security.plist
-    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain CA.cer
-    sudo security authorizationdb write com.apple.trust-settings.admin < /tmp/security.plist
-    rm /tmp/security.plist
-
     # Tell Github Workflow that we want signing
     echo "::set-output name=macos_signed::true"
 
     # If set, import CA key to allow self signed key
-    if [ -n "${MACOS_CA_PUBLICKEY:-}" ]; then
+    if [ "${MACOS_CA_PUBLICKEY:-}" ]; then
         # bypass any GUI related trusting prompt (https://developer.apple.com/forums/thread/671582)
+        echo "Trying to import CA"
         sudo security authorizationdb read com.apple.trust-settings.admin > rights
         sudo security authorizationdb write com.apple.trust-settings.admin allow
-        sudo security add-trusted-cert -d -r trustAsRoot -k /Library/Keychains/System.keychain CA.cer
+        sudo security add-trusted-cert -d -r trustAsRoot -k /Library/Keychains/System.keychain ./CA.cer
         sudo security authorizationdb write com.apple.trust-settings.admin < rights
     else
         # Tell Github Workflow that we need notarization & stapling (non self signed build)
