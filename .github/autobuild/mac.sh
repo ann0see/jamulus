@@ -46,7 +46,7 @@ prepare_signing() {
     # Check for notarization (not wanted on self signed build)
     if [ -z "${NOTARIZATION_PASSWORD}" ]; then
         echo "Notarization password not found or empty. This suggests we might run a self signed build."
-        if [ -z "${MACOS_CA_PUBLICKEY}"]; then
+        if [ -z "${MACOS_CA_PUBLICKEY}" ]; then
             echo "Warning: The CA public key wasn't set or is empty. Skipping signing."
             return 1
         fi
