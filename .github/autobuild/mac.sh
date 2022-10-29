@@ -46,10 +46,10 @@ prepare_signing() {
     # Check for notarization (not wanted on self signed build)
     if [ -z "${NOTARIZATION_PASSWORD}" ]; then
         echo "Notarization password not found or empty. This suggests we might run a self signed build."
-        #if [ false ]; then
-        #    echo "The CA public key wasn't found. Skipping signing..."
-        #    return 1
-        #fi
+        if [ -z "${MACOS_CA_PUBLICKEY}"]; then
+            echo "Warning: The CA public key wasn't set or is empty. Skipping signing."
+            return 1
+        fi
     fi
 
     echo "Signing was requested and all dependencies are satisfied"
@@ -58,7 +58,7 @@ prepare_signing() {
     echo "${MACOS_CERTIFICATE}" | base64 --decode > certificate.p12
 
     # If set, put the CA public key into a file
-    if [ true ]; then
+    if [[ -n "${MACOS_CA_PUBLICKEY}" ]]; then
         echo "${MACOS_CA_PUBLICKEY}" | base64 --decode > CA.cer
     fi
 
@@ -72,25 +72,19 @@ prepare_signing() {
     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" build.keychain
 
     # Tell Github Workflow that we want signing
-    echo "::set-output name=macos_signed::true"
+    echo "macos_signed=true" >> "$GITHUB_OUTPUT"
 
     # If set, import CA key to allow self signed key
-    if [ true ]; then
+    if [[ -n "${MACOS_CA_PUBLICKEY}" ]]; then
         # bypass any GUI related trusting prompt (https://developer.apple.com/forums/thread/671582)
-        echo "Trying to import CA"
+        echo "Importing development only CA"
         sudo security authorizationdb read com.apple.trust-settings.admin > rights
-        echo "setting perms"
         sudo security authorizationdb write com.apple.trust-settings.admin allow
-        echo "here import"
-        #sudo security import CA.cer -k build.keychain
-        echo "trusting..."
         sudo security add-trusted-cert -d -r trustRoot -k "build.keychain" ./CA.cer
-        echo "trustAsRoot"
-        #sudo security add-trusted-cert -d -r trustAsRoot -k build.keychain ./CA.cer
         sudo security authorizationdb write com.apple.trust-settings.admin < rights
     else
         # Tell Github Workflow that we need notarization & stapling (non self signed build)
-        echo "::set-output name=macos_notarize::true"
+        echo "macos_notarize=true" >> "$GITHUB_OUTPUT"
     fi
 
 
