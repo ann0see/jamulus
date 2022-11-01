@@ -62,7 +62,7 @@ jobs:
     # This must be done before actually building the app to find out where to upload the binaries and if we need to create a Github release.
     name:                           Build vars & Github release (if required)
     runs-on:                        ubuntu-20.04
-    permissions:                    read
+    permissions:                    read-all
     outputs:
       publish_to_release:           ${{ steps.get-build-vars.outputs.PUBLISH_TO_RELEASE }}
       upload_url:                   ${{ steps.create-release.outputs.upload_url }}
@@ -187,7 +187,7 @@ jobs:
   release_assets:
     name:                           Build for ${{ matrix.config.config_name }}
     needs:                          create_release
-    permissions:                    read
+    permissions:                    read-all
     strategy:
       fail-fast:                    false
       matrix:
