@@ -70,7 +70,7 @@ jobs:
       build_all_targets:            ${{ steps.decide-build-targets.outputs.build_all_targets }}
     env:
       release_changelog_path:       ./.github_release_changelog.md
-      permissions:
+    permissions:
         contents:                 write
     steps:
       - name:                       Checkout code
