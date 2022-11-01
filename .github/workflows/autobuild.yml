@@ -56,7 +56,7 @@ on:
       - '.github/pull_request_template.md'
 
 name:                               Auto-Build
-permissions:                        read-all
+permissions:                        {}
 jobs:
   create_release:
     # Check if we are doing a release or just a normal build.
