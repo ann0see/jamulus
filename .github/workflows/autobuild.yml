@@ -183,9 +183,9 @@ jobs:
     needs:                          create_release
     permissions:
       #checks:                       write
-      contents:                     write
+      contents:                     read
       pull-requests:                read
-      security-events:              read
+      security-events:              write
     strategy:
       fail-fast:                    false
       matrix:
