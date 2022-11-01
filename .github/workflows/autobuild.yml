@@ -62,6 +62,7 @@ jobs:
     # This must be done before actually building the app to find out where to upload the binaries and if we need to create a Github release.
     name:                           Build vars & Github release (if required)
     runs-on:                        ubuntu-20.04
+    permissions:                    read
     outputs:
       publish_to_release:           ${{ steps.get-build-vars.outputs.PUBLISH_TO_RELEASE }}
       upload_url:                   ${{ steps.create-release.outputs.upload_url }}
@@ -89,6 +90,9 @@ jobs:
         with:
           delete_release:           true
           tag_name:                 ${{ steps.get-build-vars.outputs.RELEASE_TAG }}
+        # allow release to be removed (needs contents: write permissions)
+        permissions:
+          contents:                 write
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
 
@@ -96,6 +100,8 @@ jobs:
         if:                         steps.get-build-vars.outputs.PUBLISH_TO_RELEASE == 'true'
         id:                         create-release
         uses:                       actions/create-release@v1
+        permissions:
+          contents:                 write
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -107,6 +113,8 @@ jobs:
 
       - name:                       Decide which targets to build for
         id:                         decide-build-targets
+        permissions:
+          contents:                 write
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
           INPUT_BUILD_ALL_TARGETS:  ${{ github.event.inputs.build_all_targets }}
@@ -179,6 +187,7 @@ jobs:
   release_assets:
     name:                           Build for ${{ matrix.config.config_name }}
     needs:                          create_release
+    permissions:                    read
     strategy:
       fail-fast:                    false
       matrix:
@@ -409,6 +418,8 @@ jobs:
         if:                         needs.create_release.outputs.publish_to_release == 'true'
         id:                         upload-release-asset1
         uses:                       actions/upload-release-asset@v1
+        permissions:
+          checks:                   write
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -423,6 +434,8 @@ jobs:
                                     needs.create_release.outputs.publish_to_release == 'true'
         id:                         upload-release-asset2
         uses:                       actions/upload-release-asset@v1
+        permissions:
+          checks:                   write
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
         with:
