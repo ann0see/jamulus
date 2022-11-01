@@ -70,7 +70,8 @@ jobs:
       build_all_targets:            ${{ steps.decide-build-targets.outputs.build_all_targets }}
     env:
       release_changelog_path:       ./.github_release_changelog.md
-
+    permissions:
+      contents:                     write
     steps:
       - name:                       Checkout code
         uses:                       actions/checkout@v3
@@ -90,9 +91,6 @@ jobs:
         with:
           delete_release:           true
           tag_name:                 ${{ steps.get-build-vars.outputs.RELEASE_TAG }}
-        # allow release to be removed (needs contents: write permissions)
-        permissions:
-          contents:                 write
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
 
@@ -100,8 +98,6 @@ jobs:
         if:                         steps.get-build-vars.outputs.PUBLISH_TO_RELEASE == 'true'
         id:                         create-release
         uses:                       actions/create-release@v1
-        permissions:
-          contents:                 write
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -113,8 +109,6 @@ jobs:
 
       - name:                       Decide which targets to build for
         id:                         decide-build-targets
-        permissions:
-          contents:                 write
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
           INPUT_BUILD_ALL_TARGETS:  ${{ github.event.inputs.build_all_targets }}
@@ -187,6 +181,9 @@ jobs:
   release_assets:
     name:                           Build for ${{ matrix.config.config_name }}
     needs:                          create_release
+    permissions:
+      checks:                       write
+      contents:                     write
     strategy:
       fail-fast:                    false
       matrix:
@@ -417,8 +414,6 @@ jobs:
         if:                         needs.create_release.outputs.publish_to_release == 'true'
         id:                         upload-release-asset1
         uses:                       actions/upload-release-asset@v1
-        permissions:
-          checks:                   write
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -433,8 +428,6 @@ jobs:
                                     needs.create_release.outputs.publish_to_release == 'true'
         id:                         upload-release-asset2
         uses:                       actions/upload-release-asset@v1
-        permissions:
-          checks:                   write
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
         with:
