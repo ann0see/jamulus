@@ -182,8 +182,10 @@ jobs:
     name:                           Build for ${{ matrix.config.config_name }}
     needs:                          create_release
     permissions:
-      checks:                       write
+      #checks:                       write
       contents:                     write
+      pull-requests:                read
+      security-events:              read
     strategy:
       fail-fast:                    false
       matrix:
