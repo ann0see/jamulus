@@ -183,8 +183,7 @@ jobs:
     needs:                          create_release
     permissions:
       #checks:                       write
-      contents:                     read
-      pull-requests:                read
+      #contents:                     read
       security-events:              write
     strategy:
       fail-fast:                    false
