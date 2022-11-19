@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - autobuild/**
   pull_request:
     types:
       - closed
