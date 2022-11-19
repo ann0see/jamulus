@@ -46,7 +46,7 @@ jobs:
     if: >-
       github.repository_owner == 'ann0see' &&
       github.event_name == 'pull_request' &&
-      startsWith(github.event.pull_request.head.label, 'ann0see:dependencies')
+      startsWith(github.event.pull_request.head.label, 'ann0see:updateCopyrightNotices')
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
