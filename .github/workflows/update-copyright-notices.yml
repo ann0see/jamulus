@@ -1,5 +1,6 @@
 name: Update copyright notices
 
+permissions: {}
 on:
   push:
     branches:
@@ -11,9 +12,11 @@ on:
 jobs:
   check-and-update-copyright-notices:
     if: >-
-      github.repository_owner == 'jamulussoftware' &&
+      github.repository_owner == 'ann0see' &&
       github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
       - run: ./tools/update-copyright-notices.sh
