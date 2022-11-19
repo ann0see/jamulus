@@ -44,10 +44,12 @@ jobs:
 
   delete-old-pr-branch:
     if: >-
-      github.repository_owner == 'jamulussoftware' &&
+      github.repository_owner == 'ann0see' &&
       github.event_name == 'pull_request' &&
       startsWith(github.event.pull_request.head.label, 'jamulussoftware:updateCopyrightNotices')
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v3
       - env:
