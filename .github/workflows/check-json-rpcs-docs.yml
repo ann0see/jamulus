@@ -5,6 +5,7 @@ on:
   pull_request:
     branches:
       - master
+      - autobuild/**
     paths:
       - 'tools/generate_json_rpc_docs.py'
       - 'src/*rpc*.cpp'
