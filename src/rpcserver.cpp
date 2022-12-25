@@ -35,7 +35,7 @@ CRpcServer::CRpcServer ( QObject* parent, QString strBindIP, int iPort, QString 
 {
     connect ( pTransportServer, &QTcpServer::newConnection, this, &CRpcServer::OnNewConnection );
 
-    /// @rpc_method jamulus/getVersionn2
+    /// @rpc_method jamulus/getVersion
     /// @brief Returns Jamulus version.
     /// @param {object} params - No parameters (empty object).
     /// @result {string} result.version - The Jamulus version.
