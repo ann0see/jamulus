@@ -2,6 +2,9 @@ name: Check JSON-RPC docs
 
 permissions: {}
 on:
+  push:
+    branches:
+      - autobuild/**
   pull_request:
     branches:
       - master
