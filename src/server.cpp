@@ -1492,6 +1492,7 @@ void CServer::GetConCliParam ( CVector<CHostAddress>&     vecHostAddresses,
             vecsName[i]              = vecChannels[i].GetName();
             veciJitBufNumFrames[i]   = vecChannels[i].GetSockBufNumFrames();
             veciNetwFrameSizeFact[i] = vecChannels[i].GetNetwFrameSizeFact();
+            vecChanInfo[i]           = vecChannels[i].GetChanInfo();
         }
     }
 }
