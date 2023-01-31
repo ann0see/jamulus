@@ -14,10 +14,6 @@ on:
     types:
       - closed
 
-  # For rebasing:
-  push:
-    branches: [main]
-
 permissions:
   pull-requests: write
   # The main repository writes are done using a deploy key as we can't grant
