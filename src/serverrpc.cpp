@@ -66,10 +66,8 @@ CServerRpc::CServerRpc ( CServer* pServer, CRpcServer* pRpcServer, QObject* pare
     /// @result {number} result.clients[*].instrumentCode - The id of the instrument for this channel.
     /// @result {number} result.clients[*].instrumentName - The text name of the instrument for this channel.
     /// @result {string} result.clients[*].city - The city name provided by the user for this channel.
-    /// @result {number} result.clients[*].countryCode - The id of the country specified by the user for this channel (see QLocale::Country).
     /// @result {number} result.clients[*].countryName - The text name of the country specified by the user for this channel (see QLocale::Country).
     /// @result {number} result.clients[*].skillLevelCode - The skill level id provided by the user for this channel.
-    /// @result {number} result.clients[*].skillLevelName - The skill level text name provided by the user for this channel.
     pRpcServer->HandleMethod ( "jamulusserver/getClients", [=] ( const QJsonObject& params, QJsonObject& response ) {
         QJsonArray                clients;
         CVector<CHostAddress>     vecHostAddresses;
@@ -102,10 +100,8 @@ CServerRpc::CServerRpc ( CServer* pServer, CRpcServer* pRpcServer, QObject* pare
                 { "instrumentCode", vecChanInfo[i].iInstrument },
                 { "instrumentName", CInstPictures::GetName ( vecChanInfo[i].iInstrument ) },
                 { "city", vecChanInfo[i].strCity },
-                { "countryCode", vecChanInfo[i].eCountry },
                 { "countryName", QLocale::countryToString ( vecChanInfo[i].eCountry ) },
                 { "skillLevelCode", vecChanInfo[i].eSkillLevel },
-                { "skillLevelName", SkillLevelToString ( vecChanInfo[i].eSkillLevel ) },
             };
             clients.append ( client );
 

@@ -682,31 +682,6 @@ enum ESkillLevel
     SL_PROFESSIONAL = 3
 };
 
-inline QString SkillLevelToString ( const int iSkill )
-{
-    switch ( iSkill )
-    {
-    case SL_NOT_SET:
-        return QCoreApplication::translate ( "CServerDlg", "None" );
-        break;
-
-    case SL_BEGINNER:
-        return QCoreApplication::translate ( "CServerDlg", "Beginner" );
-        break;
-
-    case SL_INTERMEDIATE:
-        return QCoreApplication::translate ( "CServerDlg", "Intermediate" );
-        break;
-
-    case SL_PROFESSIONAL:
-        return QCoreApplication::translate ( "CServerDlg", "Expert" );
-        break;
-
-    default:
-        return QString ( "" );
-    }
-}
-
 // define the GUI RGB colors for each skill level
 #define RGBCOL_R_SL_NOT_SET         255
 #define RGBCOL_G_SL_NOT_SET         255
