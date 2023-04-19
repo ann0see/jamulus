@@ -40,9 +40,10 @@ jobs:
         extensions: 'cpp,h,mm'
 
   check-bash-style:
-    runs-on: ubuntu-latest
     name: Verify shell script (Bash) coding style
+    runs-on: ubuntu-latest
     # shellcheck is already pre-installed on ubuntu-latest
+    steps:
     - name: Check .sh with shellcheck
       run: find -name '*.sh' -not -path './libs/*' -exec shellcheck --shell=bash {} +
     - name: Install shfmt
@@ -51,8 +52,9 @@ jobs:
       run: shfmt -d .
 
   check-python-style:
-    runs-on: ubuntu-latest
     name: Verify Python coding style
+    runs-on: ubuntu-latest
+    steps:
     - name: Install pylint
       run: pip install --user "pylint < 3.0"
     - name: Check Python files with pylint
