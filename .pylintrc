@@ -1,0 +1,43 @@
+[MAIN]
+
+# Specify a score threshold under which the program will exit with error.
+fail-under=10
+
+[BASIC]
+
+# Minimum line length for functions/classes that require docstrings, shorter
+# ones are exempt.
+docstring-min-length=100
+
+
+# Good variable names which should always be accepted, separated by a comma.
+good-names=s,
+           f,
+           i,
+           j,
+           k,
+           e,
+           _
+
+# Include a hint for the correct naming format with invalid-name.
+include-naming-hint=yes
+
+[FORMAT]
+
+# Maximum number of characters on a single line.
+max-line-length=120
+
+disable=
+        # Constant naming: definitely buggy
+        C0103,
+        # Redefining names from outer scope isn't that bad IMO
+        W0621,
+        # Everybody is assuming utf-8 now anyway
+        W1514,
+        # Too few public methods doesn't have many fixes sometimes
+        R0903,
+        # Allow TODOs
+        W0511
+
+output-format=colorized
+

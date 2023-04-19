@@ -27,3 +27,7 @@ function_next_line = false
 
 [libs/**]
 ignore = true
+
+[*.py]
+# This is the largest PEP-8 compliant(ish - long story)
+max_line_length = 99
