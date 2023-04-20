@@ -29,5 +29,5 @@ function_next_line = false
 ignore = true
 
 [*.py]
-# This is the largest PEP-8 compliant(ish - long story)
+# This is the widest that is still PEP-8 compliant
 max_line_length = 99
