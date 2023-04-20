@@ -11,13 +11,7 @@ docstring-min-length=100
 
 
 # Good variable names which should always be accepted, separated by a comma.
-good-names=s,
-           f,
-           i,
-           j,
-           k,
-           e,
-           _
+good-names=s, f, i, j, k, e, _
 
 # Include a hint for the correct naming format with invalid-name.
 include-naming-hint=yes
