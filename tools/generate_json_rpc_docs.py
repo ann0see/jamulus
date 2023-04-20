@@ -36,7 +36,7 @@ class DocumentationItem:
     def __init__(self, name, type_):
         """
         @param name: str
-        @param type: str
+        @param type_: str
         """
         self.name = name
         self.type = type_
@@ -130,9 +130,7 @@ class DocumentationTable:
         """
         @return: str containing the Markdown table
         """
-        output = []
-        output.append("| Name | Type | Description |")
-        output.append("| --- | --- | --- |")
+        output = ["| Name | Type | Description |", "| --- | --- | --- |"]
         tag_re = re.compile(r"^{(\w+)}\s+(\S+)\s+-\s+(.*)$", re.DOTALL)
         for tag in self.tags:
             text = str(tag)
