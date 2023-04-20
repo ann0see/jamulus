@@ -266,8 +266,8 @@ if __name__ == '__main__':
     p.add_argument('--repo', required=True,
                    help='the path to the git repository to be analyzed, e.g. ./jamuluswebsite')
     p.add_argument('--github-token',
-                   help='a Github Personal Access Token; optional, but might be needed if we '
-                        'exceed the anonymous API requests per hour limit')
+                   help='a Github Personal Access Token; optional, but might be needed '
+                        'if we exceed the anonymous API requests per hour limit')
     p.add_argument('--verbose', '-v', action='store_true',
                    help='enable verbose output')
     p.add_argument('--quiet', '-q', action='store_true',
