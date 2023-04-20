@@ -47,7 +47,8 @@ def parse_enum_from_header(header):
 def make_struct(name, table):
     ret = ''
     highest_key = max(int(x) for x in table.keys())
-    ret += f"constexpr int const static {name}[]"
+    # Need to escape the literal '{' by using '{{'
+    ret += f'constexpr int const static {name}[] = {{'
     for key in range(highest_key + 1):
         ret += table.get(key, -1)  # fill gaps with -1
         ret += ', '
