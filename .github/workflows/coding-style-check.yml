@@ -58,4 +58,4 @@ jobs:
     - name: Install pylint
       run: pip install --user "pylint < 3.0"
     - name: Check Python files with pylint
-      run: find -v -not -path './libs/*' -name '*.py' -print -exec pylint {} +
+      run: find -not -path './libs/*' -name '*.py' -print -exec pylint {} +
