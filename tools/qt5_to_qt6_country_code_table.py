@@ -19,7 +19,7 @@ def parse_enum_from_header(header):
     val_to_name = {}
     with open(header) as f:
         s = f.read()
-    matches = re.search(r'enum Country[^\n]+\{([^}]+)}', s)
+    matches = re.search(r'enum Country[^\n]+{([^}]+)}', s)
     assignments = matches.group(1)
 
     assign_pattern = re.compile(r'^\s*(\S+)(?:\s+.*)?\s+=\s+([^\s,]+),?$')

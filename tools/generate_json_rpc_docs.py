@@ -133,7 +133,7 @@ class DocumentationTable:
         output = []
         output.append("| Name | Type | Description |")
         output.append("| --- | --- | --- |")
-        tag_re = re.compile(r"^\{(\w+)}\s+(\S+)\s+-\s+(.*)$", re.DOTALL)
+        tag_re = re.compile(r"^{(\w+)}\s+(\S+)\s+-\s+(.*)$", re.DOTALL)
         for tag in self.tags:
             text = str(tag)
             # Parse tag in form of "{type} name - description"
