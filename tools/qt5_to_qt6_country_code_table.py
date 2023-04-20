@@ -50,7 +50,7 @@ def make_struct(name, table):
     # Need to escape the literal '{' by using '{{'
     ret += f'constexpr int const static {name}[] = {{'
     for key in range(highest_key + 1):
-        ret += table.get(key, -1)  # fill gaps with -1
+        ret += str(table.get(key, -1))  # fill gaps with -1
         ret += ', '
     ret += '};'
     return ret
