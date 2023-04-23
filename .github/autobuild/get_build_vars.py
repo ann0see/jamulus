@@ -44,7 +44,7 @@ def get_build_version(jamulus_pro_version):
 
 
 def set_github_variable(varname, varval):
-    print(f"{varname}='{varval}")  # console output
+    print(f"{varname}='{varval}'")  # console output
     output_file = os.getenv('GITHUB_OUTPUT')
     with open(output_file, "a") as ghout:
         ghout.write(f"{varname}={varval}\n")
