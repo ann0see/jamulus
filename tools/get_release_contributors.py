@@ -234,7 +234,7 @@ def find_contributors(git_log_selector, from_ref, to_ref):
                 # try to find a previous commit by this mail address
                 # and pass this commit id to get_login_or_realname() to retrieve the
                 # associated handle from the GitHub API.
-                email = re.escape(co_author_email)
+                esc_email = re.escape(co_author_email)
                 commit = subprocess.check_output(['git', 'log', '--format=%H', '--max-count=1',
                                                   f'--author={email}']).strip().decode(CHARSET)
                 if commit:
