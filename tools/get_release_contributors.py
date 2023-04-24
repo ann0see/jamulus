@@ -124,9 +124,8 @@ class Authors:
         }
         if self.token:
             headers['Authorization'] = f"token {self.token}"
-        r = requests.get(f'https://api.github.com/{path}', *args, headers=headers, **kwargs,
-                         timeout=10)
-        return r
+        return requests.get(f'https://api.github.com/{path}', *args, headers=headers, **kwargs,
+                            timeout=10)
 
     def get_user_by_email(self, key):
         m = re.match(r'\A[^<]+<([^<> ]+@[^<> ]+)>\Z', key)
@@ -137,11 +136,11 @@ class Authors:
         m = re.match(r'\A(\d+\+)?([^+@]+)@users\.noreply\.github\.com\Z', email)
         if m:
             return m.group(2)
-        r = self._github_api_get('search/users', params={'q': f'{email} in:email'})
-        if r.status_code < 200 or r.status_code >= 300:
-            logger.warning('search/users for %s failed with code %s', email, r.status_code)
+        resp = self._github_api_get('search/users', params={'q': f'{email} in:email'})
+        if resp.status_code < 200 or resp.status_code >= 300:
+            logger.warning('search/users for %s failed with code %s', email, resp.status_code)
             return None
-        items = r.json().get('items', [])
+        items = resp.json().get('items', [])
         for item in items:
             login = item['login']
             u = self._github_api_get(f'users/{login}').json()
