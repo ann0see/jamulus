@@ -44,6 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     # shellcheck is already pre-installed on ubuntu-latest
     steps:
+    - uses: actions/checkout@v3
     - name: Check .sh with shellcheck
       run: find -name '*.sh' -not -path './libs/*' -exec shellcheck --shell=bash {} +
     - name: Install shfmt
@@ -55,7 +56,8 @@ jobs:
     name: Verify Python coding style
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v3
     - name: Install pylint
       run: pip install --user "pylint < 3.0"
     - name: Check Python files with pylint
-      run: pwd; find ./tools -name '*.py' -print -exec pylint {} +
+      run: find ./tools -name '*.py' -print -exec pylint {} +
