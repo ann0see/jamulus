@@ -65,7 +65,7 @@ jobs:
     runs-on:                        ubuntu-20.04
     outputs:
       publish_to_release:           ${{ steps.get-build-vars.outputs.PUBLISH_TO_RELEASE }}
-      upload_url:                   ${{ steps.create-release.outputs.upload_url }}
+      tag_name:                     ${{ steps.get-build-vars.outputs.RELEASE_TAG }}
       build_version:                ${{ steps.get-build-vars.outputs.BUILD_VERSION }}
       build_all_targets:            ${{ steps.decide-build-targets.outputs.build_all_targets }}
     env:
@@ -85,28 +85,28 @@ jobs:
         if:                         steps.get-build-vars.outputs.PUBLISH_TO_RELEASE == 'true'
         run:                        ./.github/autobuild/extractVersionChangelog.pl ChangeLog ${{ steps.get-build-vars.outputs.JAMULUS_PRO_VERSION }} > ${{ env.release_changelog_path }}
 
-      - name:                       Remove release ${{steps.get-build-vars.outputs.RELEASE_TAG}}, if existing
-        if:                         steps.get-build-vars.outputs.PUBLISH_TO_RELEASE == 'true'
-        continue-on-error:          true
-        uses:                       dev-drprasad/delete-tag-and-release@0885ecc4123e071dd1a8be04d3a0578f5390581c
-        with:
-          delete_release:           true
-          tag_name:                 ${{ steps.get-build-vars.outputs.RELEASE_TAG }}
-        env:
-          GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
-
       - name:                       Create Release ${{steps.get-build-vars.outputs.RELEASE_TAG}}  ${{steps.get-build-vars.outputs.RELEASE_TITLE}}
         if:                         steps.get-build-vars.outputs.PUBLISH_TO_RELEASE == 'true'
         id:                         create-release
-        uses:                       actions/create-release@v1
+        run:                        |
+          set -eu
+
+          # delete release if existing
+          gh release delete "${tag_name}" || true
+
+          RELEASE_PRERELEASE_ARG=""
+          if [[ "${prerelease}" == 'true' ]]; then
+            RELEASE_PRERELEASE_ARG="--prerelease"
+          fi
+
+          gh release create "${tag_name}" --title "${release_name}" --notes-file "${body_path}" ${RELEASE_PRERELEASE_ARG}
+
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
-        with:
           tag_name:                 ${{ steps.get-build-vars.outputs.RELEASE_TAG }}
           release_name:             ${{ steps.get-build-vars.outputs.RELEASE_TITLE }}
           body_path:                ${{ env.release_changelog_path }}
           prerelease:               ${{ steps.get-build-vars.outputs.IS_PRERELEASE }}
-          draft:                    false
 
       - name:                       Decide which targets to build for
         id:                         decide-build-targets
@@ -417,28 +417,24 @@ jobs:
         # If the artifact is missing, this should fail.
         if:                         needs.create_release.outputs.publish_to_release == 'true'
         id:                         upload-release-asset1
-        uses:                       actions/upload-release-asset@v1
+        run:                        gh release upload "${tag_name}" "${asset_path}#${asset_name}"
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url:               ${{ needs.create_release.outputs.upload_url }}
+          tag_name:                 ${{ needs.create_release.outputs.tag_name }}
           asset_path:               deploy/${{ steps.get-artifacts.outputs.artifact_1 }}
           asset_name:               ${{ steps.get-artifacts.outputs.artifact_1 }}
-          asset_content_type:       application/octet-stream
 
       - name:                       Upload Artifact 2 to Release
         if:                         >-
                                     steps.get-artifacts.outputs.artifact_2 != '' &&
                                     needs.create_release.outputs.publish_to_release == 'true'
         id:                         upload-release-asset2
-        uses:                       actions/upload-release-asset@v1
+        run:                        gh release upload "${tag_name}" "${asset_path}#${asset_name}"
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url:               ${{ needs.create_release.outputs.upload_url }}
+          tag_name:                 ${{ needs.create_release.outputs.tag_name }}
           asset_path:               deploy/${{ steps.get-artifacts.outputs.artifact_2 }}
           asset_name:               ${{ steps.get-artifacts.outputs.artifact_2 }}
-          asset_content_type:       application/octet-stream
 
       - name:                       Perform CodeQL Analysis
         if:                         matrix.config.run_codeql
