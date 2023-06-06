@@ -418,8 +418,10 @@ jobs:
       - name:                       Deploy Artifacts to Release
         if:                         needs.create_release.outputs.publish_to_release == 'true'
         id:                         upload-release-assets
-        run:                        |
-          gh release upload "${{ needs.create_release.outputs.tag_name }}" "deploy/${{ steps.get-artifacts.outputs.artifact_1 }}" "deploy/${{ steps.get-artifacts.outputs.artifact_2 }}" --clobber || gh release upload "${{ needs.create_release.outputs.tag_name }}" "deploy/${{ steps.get-artifacts.outputs.artifact_1 }}" --clobber
+        run:                        >
+          gh release upload "${{ needs.create_release.outputs.tag_name }}" "deploy/${{ steps.get-artifacts.outputs.artifact_1 }}" "deploy/${{ steps.get-artifacts.outputs.artifact_2 }}" --clobber
+          ||
+          gh release upload "${{ needs.create_release.outputs.tag_name }}" "deploy/${{ steps.get-artifacts.outputs.artifact_1 }}" --clobber
         env:
           GITHUB_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
 
