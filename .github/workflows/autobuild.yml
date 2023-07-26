@@ -456,7 +456,17 @@ jobs:
           echo "GPG_REPO_KEY_MISSING=false" >> ${GITHUB_ENV}
           mkdir -p gpghome
           chmod 700 gpghome
-          echo "${GPG_PRIVATE_KEY}" | gpg --homedir gpghome --import -
+
+          # Import private key
+
+          echo "Getting private GPG key from GitHub secrets..."
+          mkdir ~/privkey
+          chmod 700 ~/privkey
+          touch ~/privkey/priv.key
+          echo "${GPG_PRIVATE_KEY}" > ~/privkey/priv.key
+          echo "Importing private GPG key..."
+          gpg --homedir gpghome --import ~/privkey/priv.key
+          rm -rf privkey
       # Unfortunately download-artifact action doesn't support wild card downloads. Thus downloading all artifacts
       - name:                       Download all artifacts
         if:                         env.GPG_REPO_KEY_MISSING == 'false'
