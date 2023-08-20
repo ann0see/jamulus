@@ -144,7 +144,7 @@ brew_install_pinned() {
     if ! find . | grep -qF "${pkg_version}--"; then
         echo "Building fresh ${pkg_version} package"
         brew developer on  # avoids a warning
-        brew extract --version="${version}" "${pkg}" homebrew/cask
+        brew extract --version="${version}" "${pkg}"
         brew install --build-bottle --formula "${formula}"
         brew bottle "${formula}"
         # In order to keep the result the same, we uninstall and re-install without --build-bottle later
