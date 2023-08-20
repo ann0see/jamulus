@@ -137,14 +137,16 @@ brew_install_pinned() {
     local version="$2"
     local pkg_version="${pkg}@${version}"
     local brew_bottle_dir="${HOME}/Library/Cache/jamulus-homebrew-bottles"
-    local formula="/usr/local/Homebrew/Library/Taps/homebrew/homebrew-cask/Formula/${pkg_version}.rb"
+    local formula="/usr/local/Homebrew/Library/Taps/homebrew/homebrew-core/Formula/${pkg_version}.rb"
     echo "Installing ${pkg_version}"
     mkdir -p "${brew_bottle_dir}"
     pushd "${brew_bottle_dir}"
     if ! find . | grep -qF "${pkg_version}--"; then
         echo "Building fresh ${pkg_version} package"
         brew developer on  # avoids a warning
+        echo "Extracting ${pkg} ..."
         brew extract --version="${version}" "${pkg}" homebrew/core
+        echo "Saving/installing ${pkg}..."
         brew install --build-bottle --formula "${formula}"
         brew bottle "${formula}"
         # In order to keep the result the same, we uninstall and re-install without --build-bottle later
