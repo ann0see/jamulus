@@ -145,7 +145,7 @@ brew_install_pinned() {
         echo "Building fresh ${pkg_version} package"
         brew developer on  # avoids a warning
         echo "Extracting ${pkg} ..."
-        brew extract --version="${version}" "${pkg}" homebrew/core
+        brew extract --version="${version}" "${pkg}" "homebrew/core"
         echo "Saving/installing ${pkg}..."
         brew install --build-bottle --formula "${formula}"
         brew bottle "${formula}"
