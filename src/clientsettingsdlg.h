@@ -88,6 +88,8 @@ public slots:
     void OnInputBoostChanged();
     void OnSndCrdBufferDelayButtonGroupClicked ( QAbstractButton* button );
     void OnSoundcardActivated ( int iSndDevIdx );
+    void OnInputSoundDeviceActivated ( int iInSndDevIdx );
+    void OnOutputSoundDeviceActivated ( int iOutSndDevIdx );
     void OnLInChanActivated ( int iChanIdx );
     void OnRInChanActivated ( int iChanIdx );
     void OnLOutChanActivated ( int iChanIdx );

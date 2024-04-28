@@ -651,6 +651,16 @@ CClientSettingsDlg::CClientSettingsDlg ( CClient* pNCliP, CClientSettings* pNSet
                        this,
                        &CClientSettingsDlg::OnSoundcardActivated );
 
+    QObject::connect ( cbxInputDevice,
+                       static_cast<void (QComboBox::* ) (int)> (&QComboBox::activated ),
+                       this,
+                       &CClientSettingsDlg::OnInputSoundDeviceActivated );
+
+    QObject::connect ( cbxOutputDevice,
+                       static_cast<void (QComboBox::* ) (int)> (&QComboBox::activated ),
+                       this,
+                       &CClientSettingsDlg::OnOutputSoundDeviceActivated );
+
     QObject::connect ( cbxLInChan,
                        static_cast<void ( QComboBox::* ) ( int )> ( &QComboBox::activated ),
                        this,
@@ -939,6 +949,16 @@ void CClientSettingsDlg::OnSoundcardActivated ( int iSndDevIdx )
     pClient->SetSndCrdDev ( cbxSoundcard->itemText ( iSndDevIdx ) );
 
     UpdateSoundDeviceChannelSelectionFrame();
+    UpdateDisplay();
+}
+
+void CClientSettingsDlg::OnInputSoundDeviceActivated ( int iInSndDevIdx )
+{
+    UpdateDisplay();
+}
+
+void CClientSettingsDlg::OnOutputSoundDeviceActivated ( int iOutSndDevIdx )
+{
     UpdateDisplay();
 }
 
