@@ -47,9 +47,10 @@ setup() {
         echo "Using Qt installation from previous run (actions/cache)"
     else
         echo "Installing Qt..."
+        # We may need to create the Qt installation directory and chown it to the runner user to fix permissions
         sudo mkdir "${QT_DIR}"
         sudo chown $(whoami) "${QT_DIR}"
-        # Create virtual environment
+        # Create and enter virtual environment
         python3 -m venv venv
         source venv/bin/activate
         pip install "aqtinstall==${AQTINSTALL_VERSION}"
@@ -60,9 +61,8 @@ setup() {
             qtmultimedia=("--modules")
         fi
         qtmultimedia+=("qtmultimedia")
-        ls ${QT_DIR}
         python3 -m aqt install-qt --outputdir "${QT_DIR}" mac desktop "${QT_VERSION}" --archives qtbase qttools qttranslations "${qtmultimedia[@]}"
-        # remove venv as aqt is no longer needed from here on
+        # deactivate and remove venv as aqt is no longer needed from here on
         deactivate
         rm -rf venv
     fi
