@@ -47,7 +47,8 @@ setup() {
         echo "Using Qt installation from previous run (actions/cache)"
     else
         echo "Installing Qt..."
-        mkdir ${QT_DIR}
+        sudo mkdir "${QT_DIR}"
+        sudo chown $(whoami) "${QT_DIR}"
         # Create virtual environment
         python3 -m venv venv
         source venv/bin/activate
