@@ -47,6 +47,7 @@ setup() {
         echo "Using Qt installation from previous run (actions/cache)"
     else
         echo "Installing Qt..."
+        mkdir ${QT_DIR}
         # Create virtual environment
         python3 -m venv venv
         source venv/bin/activate
@@ -58,6 +59,7 @@ setup() {
             qtmultimedia=("--modules")
         fi
         qtmultimedia+=("qtmultimedia")
+        ls ${QT_DIR}
         python3 -m aqt install-qt --outputdir "${QT_DIR}" mac desktop "${QT_VERSION}" --archives qtbase qttools qttranslations "${qtmultimedia[@]}"
         # remove venv as aqt is no longer needed from here on
         deactivate
