@@ -49,9 +49,11 @@ setup() {
         echo "Installing Qt..."
         # We may need to create the Qt installation directory and chown it to the runner user to fix permissions
         sudo mkdir "${QT_DIR}"
-        sudo chown $(whoami) "${QT_DIR}"
+        sudo chown "$(whoami)" "${QT_DIR}"
         # Create and enter virtual environment
         python3 -m venv venv
+        # Must hide directory as it just gets created during execution of the previous command and cannot be found by shellcheck
+        # shellcheck source=/dev/null
         source venv/bin/activate
         pip install "aqtinstall==${AQTINSTALL_VERSION}"
         local qtmultimedia=()
