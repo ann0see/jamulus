@@ -47,7 +47,10 @@ setup() {
         echo "Using Qt installation from previous run (actions/cache)"
     else
         echo "Installing Qt..."
-        python3 -m pip install "aqtinstall==${AQTINSTALL_VERSION}"
+        # Create virtual environment
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install "aqtinstall==${AQTINSTALL_VERSION}"
         local qtmultimedia=()
         if [[ ! "${QT_VERSION}" =~ 5\.[0-9]+\.[0-9]+ ]]; then
             # From Qt6 onwards, qtmultimedia is a module and cannot be installed
@@ -56,6 +59,9 @@ setup() {
         fi
         qtmultimedia+=("qtmultimedia")
         python3 -m aqt install-qt --outputdir "${QT_DIR}" mac desktop "${QT_VERSION}" --archives qtbase qttools qttranslations "${qtmultimedia[@]}"
+        # remove venv as aqt is no longer needed from here on
+        deactivate
+        rm -rf venv
     fi
 }
 
