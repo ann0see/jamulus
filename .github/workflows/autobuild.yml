@@ -422,7 +422,7 @@ jobs:
                                     needs.create_release.outputs.publish_to_release == 'true' &&
                                     steps.build.outputs.macos_notarize == 'true'
         id:                         staple-macOS-app
-        uses:                       BoundfoxStudios/action-xcode-staple@cd6c16fb6a3dfb365203a41343926f81e813afad
+        run:                        ${{ matrix.config.base_command }} staple
         with:
           product-path:             deploy/${{ steps.get-artifacts.outputs.artifact_1 }}
 

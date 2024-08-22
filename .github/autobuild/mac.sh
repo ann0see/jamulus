@@ -202,6 +202,11 @@ appstore_submit() {
         --wait
 }
 
+staple() {
+    echo "Stapling package..."
+    xcrun stapler staple "${product-path}"
+}
+
 case "${1:-}" in
     setup)
         setup
