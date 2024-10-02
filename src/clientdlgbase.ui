@@ -645,6 +645,15 @@
   <tabstop>sldAudioReverb</tabstop>
   <tabstop>rbtReverbSelL</tabstop>
   <tabstop>rbtReverbSelR</tabstop>
+  <tabstop>lblBuffers</tabstop>
+  <tabstop>ledBuffers</tabstop>
+  <tabstop>lblPing</tabstop>
+  <tabstop>lblPingVal</tabstop>
+  <tabstop>lblPingUnit</tabstop>
+  <tabstop>ledPing</tabstop>
+  <tabstop>lblDelay</tabstop>
+  <tabstop>lblDelayVal</tabstop>
+  <tabstop>lblDelayUnit</tabstop>
  </tabstops>
  <resources>
   <include location="resources.qrc"/>
