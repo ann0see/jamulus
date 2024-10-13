@@ -259,6 +259,11 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
     // track number of clients to detect joins/leaves for audio alerts
     iClients = 0;
 
+#if defined( Q_OS_IOS )
+    // do not show connecting help on iOS, since it would overflow the screen on small devices and iOS setup is not difficult anyway
+    lblConnectToServer->hide();
+#endif
+
     // prepare Mute Myself info label (invisible by default)
     lblGlobalInfoLabel->setStyleSheet ( ".QLabel { background: red; }" );
     lblGlobalInfoLabel->hide();
@@ -1264,10 +1269,11 @@ void CClientDlg::Disconnect()
     lbrInputLevelR->setEnabled ( false );
     lbrInputLevelL->SetValue ( 0 );
     lbrInputLevelR->SetValue ( 0 );
-
+#if !defined( Q_OS_IOS )
     // show connect to server message
+    // do not show this on iOS, since it would overflow the screen on small devices and iOS setup is not difficult anyway
     lblConnectToServer->show();
-
+#endif
     // stop other timers
     TimerBuffersLED.stop();
     TimerPing.stop();
