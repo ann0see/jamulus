@@ -53,6 +53,7 @@ setup() {
         # Must hide directory as it just gets created during execution of the previous command and cannot be found by shellcheck
         # shellcheck source=/dev/null
         source venv/bin/activate
+        pip install "aqtinstall==${AQTINSTALL_VERSION}"
         # Install actual ios Qt:
         local qtmultimedia=()
         if [[ ! "${QT_VERSION}" =~ 5\.[0-9]+\.[0-9]+ ]]; then
