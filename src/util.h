@@ -436,6 +436,7 @@ public slots:
     void OnHelpClientGetStarted() { QDesktopServices::openUrl ( QUrl ( CLIENT_GETTING_STARTED_URL ) ); }
     void OnHelpServerGetStarted() { QDesktopServices::openUrl ( QUrl ( SERVER_GETTING_STARTED_URL ) ); }
     void OnHelpSoftwareMan() { QDesktopServices::openUrl ( QUrl ( SOFTWARE_MANUAL_URL ) ); }
+    void OnHelpPrivacyPolicy() { QDesktopServices::openUrl ( QUrl ( PRIVACY_POLICY_URL ) ); }
 };
 
 // Language combo box ----------------------------------------------------------
