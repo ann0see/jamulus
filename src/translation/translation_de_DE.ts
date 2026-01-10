@@ -21,7 +21,7 @@
     <message>
         <location filename="../util.cpp" line="411"/>
         <source>Audio reverberation code by Perry R. Cook and Gary P. Scavone</source>
-        <translation>Halleffekt von Perry R. Cook und Gary P. Scavone</translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../util.cpp" line="369"/>
