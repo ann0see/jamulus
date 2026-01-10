@@ -16,7 +16,7 @@
     <message>
         <location filename="../util.cpp" line="393"/>
         <source>(runtime)</source>
-        <translation>(Laufzeit)</translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../util.cpp" line="411"/>
