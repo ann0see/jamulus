@@ -11,7 +11,7 @@
     <message>
         <location filename="../util.cpp" line="392"/>
         <source>(build)</source>
-        <translation>(build)</translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../util.cpp" line="393"/>
