@@ -26,6 +26,6 @@ jobs:
       - name:        "Check Windows installer translations"
         run:         ./tools/check-wininstaller-translations.sh
       - name:        "Check application translations"
-        run:         ./tools/check-translations.py
+        run:         pip install PyGithub && ./tools/check-translations.py
       #- name:       "Check for duplicate hotkeys (will not fail)"
       #  run:        sudo apt install libxml-simple-perl && cd src/translation/ && perl ./tools/checkkeys.pl
