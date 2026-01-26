@@ -4,7 +4,7 @@ set -eu -o pipefail
 ## Builds an ipa file for iOS. Should be run from the repo-root
 
 # Create Xcode file and build
-qmake -spec macx-xcode Jamulus.pro
+qmake -spec macx-ios-clang Jamulus.pro
 /usr/bin/xcodebuild -project Jamulus.xcodeproj -scheme Jamulus -configuration Release clean archive -archivePath "build/Jamulus.xcarchive" -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO CODE_SIGN_ENTITLEMENTS=""
 
 # Generate ipa by copying the .app file from the xcarchive directory
