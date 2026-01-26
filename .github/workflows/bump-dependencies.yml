@@ -29,7 +29,7 @@ jobs:
   create-prs:
     name: Update ${{ matrix.components.name }} if necessary
     if: >-
-      github.repository_owner == 'jamulussoftware' &&
+      github.repository_owner == 'ann0see' &&
       github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     strategy:
