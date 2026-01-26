@@ -83,6 +83,8 @@ setup() {
 build_app_as_ipa() {
     # Add the Qt binaries to the PATH:
     export PATH="${QT_DIR}/${QT_VERSION}/ios/bin:${PATH}"
+    ls "${QT_DIR}/${QT_VERSION}"
+    ls "${QT_DIR}/${QT_VERSION}/ios/bin"
     ./ios/deploy_ios.sh
 }
 
