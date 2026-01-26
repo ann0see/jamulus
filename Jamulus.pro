@@ -51,26 +51,16 @@ contains(CONFIG, "headless") {
 }
 
 
-# Put all generated files in build folder to avoid missing files
-OBJECTS_DIR = $$PWD/build/objects
-MOC_DIR     = $$PWD/build/moc
-RCC_DIR     = $$PWD/build/qrc
-UI_DIR      = $$PWD/build/ui
-
-# Force Xcode to always see the generated files
 ios {
-    # Extra target for qrc files
+    # Ensure the Qt resource file is generated at Xcode build time
     QMAKE_EXTRA_TARGETS += generate_qrc
     generate_qrc.target = qrc_qmake_qmake_qm_files.cpp
-    generate_qrc.commands = $$QMAKE_RCC $$PWD/src/resources.qrc -o $$RCC_DIR/qrc_qmake_qmake_qm_files.cpp
+    generate_qrc.commands = $$QMAKE_RCC $$PWD/src/resources.qrc -o $$PWD/qrc_qmake_qmake_qm_files.cpp
     generate_qrc.CONFIG += no_link
 
-    # Ensure target depends on qrc file
-    PRE_TARGETDEPS += $$RCC_DIR/qrc_qmake_qmake_qm_files.cpp
+    # Make Jamulus target depend on the generated file
+    PRE_TARGETDEPS += $$PWD/qrc_qmake_qmake_qm_files.cpp
 }
-
-# Optional: Ensure moc files generated in build directory
-MOC_DIR = $$PWD/build/moc
 
 # Do not set LRELEASE_DIR explicitly when using embed_translations.
 # It doesn't work with multiple targets or architectures.
