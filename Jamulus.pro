@@ -188,7 +188,7 @@ win32 {
 
     HEADERS += src/mac/activity.h src/mac/badgelabel.h
     OBJECTIVE_SOURCES += src/mac/activity.mm src/mac/badgelabel.mm
-    CONFIG += x86
+
     QMAKE_TARGET_BUNDLE_PREFIX = app.jamulussoftware
 
     OSX_ENTITLEMENTS.files = mac/Jamulus.entitlements
@@ -691,15 +691,17 @@ contains(QT_ARCH, armeabi-v7a) | contains(QT_ARCH, arm64-v8a) {
     SOURCES_OPUS_ARCH += $$SOURCES_OPUS_ARM
     DEFINES_OPUS += OPUS_ARM_PRESUME_NEON=1 OPUS_ARM_PRESUME_NEON_INTR=1
     contains(QT_ARCH, arm64-v8a):DEFINES_OPUS += OPUS_ARM_PRESUME_AARCH64_NEON_INTR
-} else:contains(QT_ARCH, x86) | contains(QT_ARCH, x86_64) {
+} else:contains(QT_ARCH, arm64) | contains(QMAKE_APPLE_DEVICE_ARCHS, arm64) {
+    HEADERS_OPUS += $$HEADERS_OPUS_ARM
+    SOURCES_OPUS_ARCH += $$SOURCES_OPUS_ARM
+    DEFINES_OPUS += OPUS_ARM_PRESUME_NEON=1 OPUS_ARM_PRESUME_NEON_INTR=1
+} else {
     HEADERS_OPUS += $$HEADERS_OPUS_X86
     SOURCES_OPUS_ARCH += $$SOURCES_OPUS_X86_SSE $$SOURCES_OPUS_X86_SSE2 $$SOURCES_OPUS_X86_SSE4
     DEFINES_OPUS += OPUS_X86_MAY_HAVE_SSE OPUS_X86_MAY_HAVE_SSE2 OPUS_X86_MAY_HAVE_SSE4_1
-    # x86_64 implies SSE2
-    contains(QT_ARCH, x86_64):DEFINES_OPUS += OPUS_X86_PRESUME_SSE=1 OPUS_X86_PRESUME_SSE2=1
-    DEFINES_OPUS += CPU_INFO_BY_C
 }
-DEFINES_OPUS += OPUS_BUILD=1 USE_ALLOCA=1 OPUS_HAVE_RTCD=1 HAVE_LRINTF=1 HAVE_LRINT=1
+
+DEFINES_OPUS += OPUS_BUILD=1 USE_ALLOCA=1 HAVE_LRINTF=1 HAVE_LRINT=1
 
 DISTFILES += ChangeLog \
     COMPILING.md \
@@ -1137,41 +1139,43 @@ contains(CONFIG, "opus_shared_lib") {
     DISTFILES += $$DISTFILES_OPUS
 
     contains(QT_ARCH, x86) | contains(QT_ARCH, x86_64) {
-        msvc | macx-xcode {
-            # According to opus/win32/config.h, "no special compiler
-            # flags necessary" when using msvc.  It always supports
-            # SSE intrinsics, but does not auto-vectorize.
+        unix:!macx {
             # The macOS Xcode build would fail with these specific compiler flags.
-            # Thus, we omit them for macx-xcode too. This was discovered by
+            # Thus, we omit them for macx-xcode. This was discovered by
             # plain testing by the Jamulus team and might mean that the
             # optimizations are not used on macx-xcode. (See #1841, #3076)
 
-            SOURCES += $$SOURCES_OPUS_ARCH
-        } else {
-            # Arch-specific files need special compiler flags, but we
-            # can't use those flags for other files because otherwise we
-            # might end up with vectorized code that the CPU doesn't
-            # support.  For windows, libs/opus/win32/config.h says no
-            # compiler flags are needed.
-            sse_cc.name = sse_cc
-            sse_cc.input = SOURCES_OPUS_X86_SSE
-            sse_cc.dependency_type = TYPE_C
-            sse_cc.output = ${QMAKE_VAR_OBJECTS_DIR}${QMAKE_FILE_IN_BASE}$${first(QMAKE_EXT_OBJ)}
-            sse_cc.commands = ${CC} -msse $(CFLAGS) $(INCPATH) -c ${QMAKE_FILE_IN} -o ${QMAKE_FILE_OUT}
-            sse_cc.variable_out = OBJECTS
-            sse2_cc.name = sse2_cc
-            sse2_cc.input = SOURCES_OPUS_X86_SSE2
-            sse2_cc.dependency_type = TYPE_C
-            sse2_cc.output = ${QMAKE_VAR_OBJECTS_DIR}${QMAKE_FILE_IN_BASE}$${first(QMAKE_EXT_OBJ)}
-            sse2_cc.commands = ${CC} -msse2 $(CFLAGS) $(INCPATH) -c ${QMAKE_FILE_IN} -o ${QMAKE_FILE_OUT}
-            sse2_cc.variable_out = OBJECTS
-            sse4_cc.name = sse4_cc
-            sse4_cc.input = SOURCES_OPUS_X86_SSE4
-            sse4_cc.dependency_type = TYPE_C
-            sse4_cc.output = ${QMAKE_VAR_OBJECTS_DIR}${QMAKE_FILE_IN_BASE}$${first(QMAKE_EXT_OBJ)}
-            sse4_cc.commands = ${CC} -msse4 $(CFLAGS) $(INCPATH) -c ${QMAKE_FILE_IN} -o ${QMAKE_FILE_OUT}
-            sse4_cc.variable_out = OBJECTS
-            QMAKE_EXTRA_COMPILERS += sse_cc sse2_cc sse4_cc
+            msvc {
+                # According to opus/win32/config.h, "no special compiler
+                # flags necessary" when using msvc.  It always supports
+                # SSE intrinsics, but does not auto-vectorize.
+                SOURCES += $$SOURCES_OPUS_ARCH
+            } else {
+                # Arch-specific files need special compiler flags, but we
+                # can't use those flags for other files because otherwise we
+                # might end up with vectorized code that the CPU doesn't
+                # support.  For windows, libs/opus/win32/config.h says no
+                # compiler flags are needed.
+                sse_cc.name = sse_cc
+                sse_cc.input = SOURCES_OPUS_X86_SSE
+                sse_cc.dependency_type = TYPE_C
+                sse_cc.output = ${QMAKE_VAR_OBJECTS_DIR}${QMAKE_FILE_IN_BASE}$${first(QMAKE_EXT_OBJ)}
+                sse_cc.commands = ${CC} -msse $(CFLAGS) $(INCPATH) -c ${QMAKE_FILE_IN} -o ${QMAKE_FILE_OUT}
+                sse_cc.variable_out = OBJECTS
+                sse2_cc.name = sse2_cc
+                sse2_cc.input = SOURCES_OPUS_X86_SSE2
+                sse2_cc.dependency_type = TYPE_C
+                sse2_cc.output = ${QMAKE_VAR_OBJECTS_DIR}${QMAKE_FILE_IN_BASE}$${first(QMAKE_EXT_OBJ)}
+                sse2_cc.commands = ${CC} -msse2 $(CFLAGS) $(INCPATH) -c ${QMAKE_FILE_IN} -o ${QMAKE_FILE_OUT}
+                sse2_cc.variable_out = OBJECTS
+                sse4_cc.name = sse4_cc
+                sse4_cc.input = SOURCES_OPUS_X86_SSE4
+                sse4_cc.dependency_type = TYPE_C
+                sse4_cc.output = ${QMAKE_VAR_OBJECTS_DIR}${QMAKE_FILE_IN_BASE}$${first(QMAKE_EXT_OBJ)}
+                sse4_cc.commands = ${CC} -msse4 $(CFLAGS) $(INCPATH) -c ${QMAKE_FILE_IN} -o ${QMAKE_FILE_OUT}
+                sse4_cc.variable_out = OBJECTS
+                QMAKE_EXTRA_COMPILERS += sse_cc sse2_cc sse4_cc
+            }
         }
     }
 }
