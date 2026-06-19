@@ -188,7 +188,6 @@ win32 {
 
     HEADERS += src/mac/activity.h src/mac/badgelabel.h
     OBJECTIVE_SOURCES += src/mac/activity.mm src/mac/badgelabel.mm
-    CONFIG += x86
     QMAKE_TARGET_BUNDLE_PREFIX = app.jamulussoftware
 
     OSX_ENTITLEMENTS.files = mac/Jamulus.entitlements
@@ -686,11 +685,15 @@ SOURCES_OPUS_X86_SSE4 = libs/opus/celt/x86/celt_lpc_sse4_1.c \
      libs/opus/silk/x86/VAD_sse4_1.c \
      libs/opus/silk/x86/VQ_WMat_EC_sse4_1.c
 
-contains(QT_ARCH, armeabi-v7a) | contains(QT_ARCH, arm64-v8a) {
+contains(QT_ARCH, armeabi-v7a) | contains(QT_ARCH, arm64) {
     HEADERS_OPUS += $$HEADERS_OPUS_ARM
-    SOURCES_OPUS_ARCH += $$SOURCES_OPUS_ARM
-    DEFINES_OPUS += OPUS_ARM_PRESUME_NEON=1 OPUS_ARM_PRESUME_NEON_INTR=1
-    contains(QT_ARCH, arm64-v8a):DEFINES_OPUS += OPUS_ARM_PRESUME_AARCH64_NEON_INTR
+
+    android {
+        # Android needs specific headers it seems
+        SOURCES_OPUS_ARCH += $$SOURCES_OPUS_ARM
+        DEFINES_OPUS += OPUS_ARM_PRESUME_NEON=1 OPUS_ARM_PRESUME_NEON_INTR=1
+    }
+    contains(QT_ARCH, arm64):DEFINES_OPUS += OPUS_ARM_PRESUME_AARCH64_NEON_INTR
 } else:contains(QT_ARCH, x86) | contains(QT_ARCH, x86_64) {
     HEADERS_OPUS += $$HEADERS_OPUS_X86
     SOURCES_OPUS_ARCH += $$SOURCES_OPUS_X86_SSE $$SOURCES_OPUS_X86_SSE2 $$SOURCES_OPUS_X86_SSE4
@@ -1135,24 +1138,22 @@ contains(CONFIG, "opus_shared_lib") {
     HEADERS += $$HEADERS_OPUS
     SOURCES += $$SOURCES_OPUS
     DISTFILES += $$DISTFILES_OPUS
+    SOURCES += $$SOURCES_OPUS_ARCH
 
     contains(QT_ARCH, x86) | contains(QT_ARCH, x86_64) {
-        msvc | macx-xcode {
+        msvc {
             # According to opus/win32/config.h, "no special compiler
             # flags necessary" when using msvc.  It always supports
             # SSE intrinsics, but does not auto-vectorize.
-            # The macOS Xcode build would fail with these specific compiler flags.
-            # Thus, we omit them for macx-xcode too. This was discovered by
-            # plain testing by the Jamulus team and might mean that the
-            # optimizations are not used on macx-xcode. (See #1841, #3076)
-
-            SOURCES += $$SOURCES_OPUS_ARCH
         } else {
             # Arch-specific files need special compiler flags, but we
             # can't use those flags for other files because otherwise we
             # might end up with vectorized code that the CPU doesn't
             # support.  For windows, libs/opus/win32/config.h says no
             # compiler flags are needed.
+
+            SOURCES -= $$SOURCES_OPUS_ARCH
+
             sse_cc.name = sse_cc
             sse_cc.input = SOURCES_OPUS_X86_SSE
             sse_cc.dependency_type = TYPE_C
