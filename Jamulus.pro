@@ -1153,7 +1153,6 @@ contains(CONFIG, "opus_shared_lib") {
                 # flags necessary" when using msvc.  It always supports
                 # SSE intrinsics, but does not auto-vectorize.
 
-
                 SOURCES += $$SOURCES_OPUS_ARCH
             } else {
                 # Arch-specific files need special compiler flags, but we
