@@ -686,7 +686,6 @@ SOURCES_OPUS_X86_SSE4 = libs/opus/celt/x86/celt_lpc_sse4_1.c \
      libs/opus/silk/x86/VAD_sse4_1.c \
      libs/opus/silk/x86/VQ_WMat_EC_sse4_1.c
 
-contains(QT_ARCH, armeabi-v7a) | contains(QT_ARCH, arm64-v8a) {
 contains(QT_ARCH, armeabi-v7a) | contains(QT_ARCH, arm64-v8a) | contains(QT_ARCH, arm64) {
     HEADERS_OPUS += $$HEADERS_OPUS_ARM
     SOURCES_OPUS_ARCH += $$SOURCES_OPUS_ARM
