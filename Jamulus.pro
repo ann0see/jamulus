@@ -1143,7 +1143,6 @@ contains(CONFIG, "opus_shared_lib") {
     DISTFILES += $$DISTFILES_OPUS
 
     contains(QT_ARCH, x86) | contains(QT_ARCH, x86_64) {
-        msvc | macx-xcode {
         msvc | macx {
             # According to opus/win32/config.h, "no special compiler
             # flags necessary" when using msvc.  It always supports
