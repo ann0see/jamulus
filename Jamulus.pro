@@ -702,7 +702,7 @@ contains(QT_ARCH, armeabi-v7a) | contains(QT_ARCH, arm64-v8a) | contains(QT_ARCH
 }
 DEFINES_OPUS += OPUS_BUILD=1 USE_ALLOCA=1 HAVE_LRINTF=1 HAVE_LRINT=1
 
-!macx {
+!(macx:contains(QT_ARCH, x86)) {
   # macOS fails unless disabled due to QT_ARCH being x86_64 even on apple silicon builds
   DEFINES_OPUS += OPUS_HAVE_RTCD=1
 }
