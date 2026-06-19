@@ -694,7 +694,7 @@ contains(QT_ARCH, armeabi-v7a) | contains(QT_ARCH, arm64-v8a) | contains(QT_ARCH
     HEADERS_OPUS += $$HEADERS_OPUS_X86
     DEFINES_OPUS += OPUS_X86_MAY_HAVE_SSE OPUS_X86_MAY_HAVE_SSE2 OPUS_X86_MAY_HAVE_SSE4_1
     !macx {
-      # x86_64 implies SSE2, macOS does not support it
+      # x86_64 implies SSE2, macOS does not support it due to the current QT_ARCH being x86_64 on macOS even if compiled on apple silicon (as of 06/2026).
       SOURCES_OPUS_ARCH += $$SOURCES_OPUS_X86_SSE $$SOURCES_OPUS_X86_SSE2 $$SOURCES_OPUS_X86_SSE4
       contains(QT_ARCH, x86_64):DEFINES_OPUS += OPUS_X86_PRESUME_SSE=1 OPUS_X86_PRESUME_SSE2=1
     }
@@ -703,7 +703,7 @@ contains(QT_ARCH, armeabi-v7a) | contains(QT_ARCH, arm64-v8a) | contains(QT_ARCH
 DEFINES_OPUS += OPUS_BUILD=1 USE_ALLOCA=1 HAVE_LRINTF=1 HAVE_LRINT=1
 
 !macx {
-  # macOS (on apple silicon) does not support this
+  # macOS fails unless disabled due to QT_ARCH being x86_64 even on apple silicon builds
   DEFINES_OPUS += OPUS_HAVE_RTCD=1
 }
 
