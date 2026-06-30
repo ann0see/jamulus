@@ -5,8 +5,8 @@ Maintainer: "The Jamulus Development Team" <team@jamulus.io>
 Build-Depends:
  debhelper (>= 9),
  libjack-jackd2-dev,
- qtbase5-dev,
- qttools5-dev-tools,
+ qt6-base-dev,
+ qtt6-multimedia-dev,
 Standards-Version: 3.9.7
 Homepage: https://jamulus.io
 Vcs-Git: git://github.com/jamulussoftware/jamulus.git
