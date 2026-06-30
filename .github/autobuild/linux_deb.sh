@@ -80,7 +80,7 @@ setup() {
 
     echo "Installing dependencies..."
     sudo apt-get -qq update
-    sudo apt-get -qq --no-install-recommends -y install devscripts build-essential debhelper fakeroot libjack-jackd2-dev qtbase5-dev qttools5-dev-tools qtmultimedia5-dev
+    sudo apt-get -qq --no-install-recommends -y install devscripts build-essential debhelper fakeroot libjack-jackd2-dev qt6-base-dev qt6-multimedia-dev qt6-tools-dev
 
     setup_cross_compiler
 }
