@@ -11,12 +11,12 @@ DEB_BUILD_GNU_TYPE := $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 $(info DEB_BUILD_GNU_TYPE=$(DEB_BUILD_GNU_TYPE) DEB_HOST_GNU_TYPE=$(DEB_HOST_GNU_TYPE) DEB_TARGET_GNU_TYPE=$(DEB_TARGET_GNU_TYPE))
 
 ifeq ($(DEB_BUILD_GNU_TYPE),$(DEB_HOST_GNU_TYPE))
-	QMAKE := qmake
+	QMAKE := qmake6
 else
 	# For an unknown reason, when called from this makefile in Ubuntu 20.04,
 	# qmake needs an option between qmake and -qtconf, else it gives an error.
 	# We use -makefile, which is the default mode anyway, and this avoids the issue.
-	QMAKE := qmake -makefile -qtconf "/usr/lib/$(DEB_HOST_GNU_TYPE)/qt5/qt.conf" -spec "/usr/lib/$(DEB_HOST_GNU_TYPE)/qt5/mkspecs/$(DEB_HOST_GNU_TYPE)-g++" LIBS+="-lstdc++ -lm"
+	QMAKE := qmake6 -makefile -qtconf "/usr/lib/$(DEB_HOST_GNU_TYPE)/qt5/qt.conf" -spec "/usr/lib/$(DEB_HOST_GNU_TYPE)/qt5/mkspecs/$(DEB_HOST_GNU_TYPE)-g++" LIBS+="-lstdc++ -lm"
 endif
 
 %:
