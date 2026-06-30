@@ -83,6 +83,18 @@ setup() {
     sudo apt-get -qq --no-install-recommends -y install devscripts build-essential debhelper fakeroot libjack-jackd2-dev qt6-base-dev qt6-multimedia-dev qt6-tools-dev
     echo "qmake6 version: "
     qmake6 --version
+    echo "=== OS ==="
+    cat /etc/os-release
+    
+    echo "=== Qt packages ==="
+    dpkg -l | grep qt6
+    
+    echo "=== apt policy ==="
+    apt-cache policy qt6-base-dev qt6-base-dev-tools qt6-tools-dev qt6-multimedia-dev
+    
+    echo "=== qmake location ==="
+    which qmake6
+    ldd $(which qmake6)
     setup_cross_compiler
 }
 
