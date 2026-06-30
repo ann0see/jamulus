@@ -25,7 +25,7 @@ Then run `git clone git@github.com:jamulussoftware/jamulus` in Terminal to get t
 
 On Debian 11+ you can install the dependencies by issuing the following command: `sudo apt-get -qq --no-install-recommends -y install devscripts build-essential debhelper fakeroot libjack-jackd2-dev qtbase5-dev qttools5-dev-tools qtmultimedia5-dev`
 
-* For Qt6, install: `qt6-base-dev qt6-multimedia-dev` instead of `qtbase5-dev qttools5-dev-tools qtmultimedia5-dev`
+* For Qt6, install: `qt6-base-dev qt6-tools-dev qt6-multimedia-dev` instead of `qtbase5-dev qttools5-dev-tools qtmultimedia5-dev`
 **Note:** The exact dependencies might be different for older distributions. See [this comment by softins](https://github.com/jamulussoftware/jamulus/pull/2267#issuecomment-1022127426)
 
 ### On Fedora 33+
