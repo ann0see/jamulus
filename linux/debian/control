@@ -6,7 +6,7 @@ Build-Depends:
  debhelper (>= 9),
  libjack-jackd2-dev,
  qt6-base-dev,
- qtt6-multimedia-dev,
+ qt6-multimedia-dev,
 Standards-Version: 3.9.7
 Homepage: https://jamulus.io
 Vcs-Git: git://github.com/jamulussoftware/jamulus.git
