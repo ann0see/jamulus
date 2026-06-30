@@ -81,7 +81,8 @@ setup() {
     echo "Installing dependencies..."
     apt-get -qq update
     apt-get -qq --no-install-recommends -y install sudo devscripts build-essential debhelper fakeroot libjack-jackd2-dev qt6-base-dev qt6-multimedia-dev qt6-tools-dev
-
+    echo "qmake6 version: "
+    qmake6 --version
     setup_cross_compiler
 }
 
