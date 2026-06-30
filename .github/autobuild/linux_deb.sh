@@ -79,8 +79,8 @@ setup() {
     setup_cross_compilation_apt_sources
 
     echo "Installing dependencies..."
-    sudo apt-get -qq update
-    sudo apt-get -qq --no-install-recommends -y install devscripts build-essential debhelper fakeroot libjack-jackd2-dev qt6-base-dev qt6-multimedia-dev
+    apt-get -qq update
+    apt-get -qq --no-install-recommends -y install sudo devscripts build-essential debhelper fakeroot libjack-jackd2-dev qt6-base-dev qt6-multimedia-dev
 
     setup_cross_compiler
 }
