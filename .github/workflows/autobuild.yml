@@ -289,7 +289,7 @@ jobs:
           xcode-version:            ${{ matrix.config.xcode_version }}
 
       - name:                       Set up base dependencies in container environment
-        if:                         matrix.config.building_container == 'ubuntu:20.04'
+        if:                         matrix.config.building_container == 'ubuntu:24.04'
         run:                        |
           set -eu
           apt-get -qq update
