@@ -178,7 +178,7 @@ void CChannel::OnVersionAndOSReceived ( COSUtil::EOpSystemType eOSType, QString 
         // does all the initialization and tells the server about the change)
         bUseSequenceNumber = true;
 
-        qWarning() << "Sequence number set to true";
+        QTextStream(stdout) << "seqno -> true" << endl;
         SetAudioStreamProperties ( eAudioCompressionType, iCeltNumCodedBytes, iNetwFrameSizeFact, iNumAudioChannels );
     }
 #endif
