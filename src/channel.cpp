@@ -170,6 +170,7 @@ void CChannel::SetEnable ( const bool bNEnStat )
 
 void CChannel::OnVersionAndOSReceived ( COSUtil::EOpSystemType eOSType, QString strVersion )
 {
+    qWarning() << "Called OnVersionAndOSReceived" << endl;
     // check if audio packet counter is supported by the server (minimum version is 3.6.0)
 #if QT_VERSION >= QT_VERSION_CHECK( 5, 6, 0 )
     if ( QVersionNumber::compare ( QVersionNumber::fromString ( strVersion ), QVersionNumber ( 3, 6, 0 ) ) >= 0 )
