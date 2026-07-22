@@ -49,6 +49,7 @@
 #include <QThread>
 #include <QDateTime>
 #include <QFile>
+#include <atomic>
 #if QT_VERSION >= QT_VERSION_CHECK( 5, 6, 0 )
 #    include <QVersionNumber>
 #endif
@@ -222,7 +223,7 @@ protected:
     CNetBufWithStats SockBuf;
     int              iCurSockBufNumFrames;
     bool             bDoAutoSockBufSize;
-    bool             bUseSequenceNumber;
+    std:atomic<bool>             bUseSequenceNumber;
     uint8_t          iSendSequenceNumber;
 
     // network output conversion buffer
