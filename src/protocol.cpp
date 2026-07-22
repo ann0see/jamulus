@@ -1670,12 +1670,14 @@ void CProtocol::CreateVersionAndOSMes()
 
 bool CProtocol::EvaluateVersionAndOSMes ( const CVector<uint8_t>& vecData )
 {
+    qWarning() << "Received version and os msg";
     int       iPos     = 0; // init position pointer
     const int iDataLen = vecData.Size();
 
     // check size (the first 1 byte)
     if ( iDataLen < 1 )
     {
+        qWarning() << "iDataLen wrong";
         return true; // return error code
     }
 
@@ -1686,15 +1688,18 @@ bool CProtocol::EvaluateVersionAndOSMes ( const CVector<uint8_t>& vecData )
     QString strVersion;
     if ( GetStringFromStream ( vecData, iPos, MAX_LEN_VERSION_TEXT, strVersion ) )
     {
+        qWarning() << "version wrong";
         return true; // return error code
     }
 
     // check size: all data is read, the position must now be at the end
     if ( iPos != iDataLen )
     {
+        qWarning() << "data len wrong";
         return true; // return error code
     }
 
+    qWarning() << "Emitting VersionAndOSReceived";
     // invoke message action
     emit VersionAndOSReceived ( eOSType, strVersion );
 
