@@ -223,7 +223,7 @@ protected:
     CNetBufWithStats SockBuf;
     int              iCurSockBufNumFrames;
     bool             bDoAutoSockBufSize;
-    std:atomic<bool>             bUseSequenceNumber;
+    std::atomic<bool>             bUseSequenceNumber;
     uint8_t          iSendSequenceNumber;
 
     // network output conversion buffer
