@@ -91,6 +91,7 @@ QString CSound::LoadAndInitializeDriver ( QString strDriverName, bool bOpenDrive
     // okay...
     memset ( &driverInfo, 0, sizeof driverInfo );
 
+    // ASIOInit() must be paired with ASIOExit(), which also nulls theAsioDriver
     if ( ASIOInit ( &driverInfo ) != ASE_OK )
     {
         // clean up and return error string
@@ -129,8 +130,8 @@ QString CSound::LoadAndInitializeDriver ( QString strDriverName, bool bOpenDrive
                                     QMessageBox::Yes );
         }
 
-        // driver cannot be used, clean up
-        asioDrivers->removeCurrentDriver();
+        // driver cannot be used, clean up with ASIOExit() (nulls theAsioDriver)
+        ASIOExit();
     }
 
     return strStat;
