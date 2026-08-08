@@ -182,7 +182,7 @@ CClient::CClient ( const quint16  iPortNumber,
     QObject::connect ( &ConnLessProtocol, &CProtocol::CLChannelLevelListReceived, this, &CClient::OnCLChannelLevelListReceived );
 
     // other
-    QObject::connect ( &Sound, &CSound::ReinitRequest, this, &CClient::OnSndCrdReinitRequest );
+    QObject::connect ( &Sound, &CSound::ReinitRequest, this, &CClient::OnSndCrdReinitRequest, Qt::QueuedConnection );
 
     QObject::connect ( &Sound, &CSound::ControllerInFaderLevel, this, &CClient::OnControllerInFaderLevel );
 
