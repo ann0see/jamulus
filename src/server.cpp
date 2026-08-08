@@ -174,6 +174,8 @@ CServer::CServer ( const int          iNewMaxNumChan,
     vecChanIDsCurConChan.Init ( iMaxNumChannels );
     vecvecfGains.Init ( iMaxNumChannels );
     vecvecfPannings.Init ( iMaxNumChannels );
+    vecvecfGainsSnapshot.Init ( iMaxNumChannels );
+    vecvecfPanningsSnapshot.Init ( iMaxNumChannels );
     vecvecsData.Init ( iMaxNumChannels );
     vecvecsData2.Init ( iMaxNumChannels );
     vecvecsSendData.Init ( iMaxNumChannels );
@@ -189,6 +191,8 @@ CServer::CServer ( const int          iNewMaxNumChan,
         // init vectors storing information of all channels
         vecvecfGains[i].Init ( iMaxNumChannels );
         vecvecfPannings[i].Init ( iMaxNumChannels );
+        vecvecfGainsSnapshot[i].Init ( MAX_NUM_CHANNELS );
+        vecvecfPanningsSnapshot[i].Init ( MAX_NUM_CHANNELS );
 
         // we always use stereo audio buffers (which is the worst case)
         vecvecsData[i].Init ( 2 /* stereo */ * DOUBLE_SYSTEM_FRAME_SIZE_SAMPLES /* worst case buffer size */ );
@@ -896,14 +900,17 @@ void CServer::DecodeReceiveData ( const int iChanCnt, const int iNumClients )
         CurOpusDecoder = nullptr;
     }
 
-    // get gains of all connected channels
+    // get gains and pannings of all connected channels (acquire the mutex once
+    // per channel instead of once per channel pair)
+    vecChannels[iCurChanID].GetGainsAndPannings ( vecvecfGainsSnapshot[iChanCnt], vecvecfPanningsSnapshot[iChanCnt] );
+
     for ( int j = 0; j < iNumClients; j++ )
     {
         // The second index of "vecvecdGains" does not represent
         // the channel ID! Therefore we have to use
         // "vecChanIDsCurConChan" to query the IDs of the currently
         // connected channels
-        vecvecfGains[iChanCnt][j] = vecChannels[iCurChanID].GetGain ( vecChanIDsCurConChan[j] );
+        vecvecfGains[iChanCnt][j] = vecvecfGainsSnapshot[iChanCnt][vecChanIDsCurConChan[j]];
 
         // consider audio fade-in
         vecvecfGains[iChanCnt][j] *= vecChannels[vecChanIDsCurConChan[j]].GetFadeInGain();
@@ -916,7 +923,7 @@ void CServer::DecodeReceiveData ( const int iChanCnt, const int iNumClients )
         }
 
         // panning
-        vecvecfPannings[iChanCnt][j] = vecChannels[iCurChanID].GetPan ( vecChanIDsCurConChan[j] );
+        vecvecfPannings[iChanCnt][j] = vecvecfPanningsSnapshot[iChanCnt][vecChanIDsCurConChan[j]];
     }
 
     // If the server frame size is smaller than the received OPUS frame size, we need a conversion
