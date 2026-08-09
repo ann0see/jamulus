@@ -303,7 +303,7 @@ The request must be sent as a single line of JSON-encoded data, followed by a ne
 Jamulus will also send **notifications** to the consumer:
 
 ```json
-{"jsonrpc":"2.0","method":"jamulusclient/chatTextReceived","params":{"text":"<font color=\\"mediumblue\\">(01:23:45 AM) <b>user</b></font> test"}}
+{"jsonrpc":"2.0","method":"jamulusclient/chatTextReceived","params":{"channelId":12,"timestamp":1786298460,"senderName":"user","text":"test"}}
 ```
 
 """

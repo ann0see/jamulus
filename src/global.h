@@ -232,6 +232,13 @@ LED bar:      lbr
 // maximum number of connected clients at the server (must not be larger than 256)
 #define MAX_NUM_CHANNELS 150 // max number channels for server
 
+// channel ID sentinel for server/RPC-originated chat messages on the wire (message 37)
+#define SERVER_CHAT_CHANNEL_ID 255
+
+// internal marker for RPC-originated chat messages (no sender channel); maps to
+// SERVER_CHAT_CHANNEL_ID at the fan-out boundary and never surfaces in the public API
+#define INVALID_CLIENT_ID -1
+
 // actual number of used channels in the server
 // this parameter can safely be changed from 1 to MAX_NUM_CHANNELS
 // without any other changes in the code

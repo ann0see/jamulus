@@ -142,6 +142,12 @@ bool    IsMappedReleaseVersion ( const QString& mappedVersion );
 QString MapVersionStrForCompare ( const QString& versionStr );
 QString TruncateString ( QString str, int position );
 
+// escape plain text as HTML and then wrap bare http(s):// URLs in anchor tags;
+// used for chat rendering so that user text is never interpreted as markup
+QString EscapeAndLinkifyText ( const QString strText );
+// wrap bare http(s):// URLs in anchor tags in already-escaped HTML text
+void LinkifyURLs ( QString& strText );
+
 /******************************************************************************\
 * CVector Base Class                                                           *
 \******************************************************************************/

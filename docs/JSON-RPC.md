@@ -74,7 +74,7 @@ The request must be sent as a single line of JSON-encoded data, followed by a ne
 Jamulus will also send **notifications** to the consumer:
 
 ```json
-{"jsonrpc":"2.0","method":"jamulusclient/chatTextReceived","params":{"text":"<font color=\"mediumblue\">(01:23:45 AM) <b>user</b></font> test"}}
+{"jsonrpc":"2.0","method":"jamulusclient/chatTextReceived","params":{"channelId":12,"timestamp":1786298460,"senderName":"user","text":"test"}}
 ```
 
 ## Method reference
@@ -600,13 +600,16 @@ Parameters:
 
 ### jamulusclient/chatTextReceived
 
-Emitted when a chat text is received.
+Emitted when a structured chat message (message 37) is received. Carries semantic data, never presentation markup.
 
 Parameters:
 
 | Name | Type | Description |
 | --- | --- | --- |
-| params.chatText | string | The chat text. |
+| params.channelId | number | Channel ID of the sending client, or 255 for server/RPC-originated messages. |
+| params.timestamp | number | Unix timestamp (seconds) stamped at the server. |
+| params.senderName | string | Name of the sending client (empty for server/RPC-originated messages). |
+| params.text | string | Chat message text. |
 
 
 ### jamulusclient/clientListReceived
@@ -698,8 +701,10 @@ Parameters:
 
 | Name | Type | Description |
 | --- | --- | --- |
-| params.id | number | Channel ID of sending client or -1 for RPC sent messages. |
-| params.chatMessage | string | Chat message text. |
+| params.channelId | number | Channel ID of sending client or -1 for RPC sent messages. |
+| params.timestamp | number | Unix timestamp (seconds) stamped at the server. |
+| params.senderName | string | Name of the sending client (empty for RPC sent messages). |
+| params.text | string | Chat message text. |
 
 
 ### jamulusserver/clientConnected

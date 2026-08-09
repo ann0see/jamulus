@@ -849,6 +849,10 @@ void CProtocol::ParseMessageBody ( const CVector<uint8_t>& vecbyMesBodyData, con
                     EvaluateChatTextMes ( vecbyMesBodyDataRef );
                     break;
 
+                case PROTMESSID_CHAT_TEXT_CHANNEL:
+                    EvaluateChatTextChannelMes ( vecbyMesBodyDataRef );
+                    break;
+
                 case PROTMESSID_NETW_TRANSPORT_PROPS:
                     EvaluateNetwTranspPropsMes ( vecbyMesBodyDataRef );
                     break;
@@ -863,6 +867,14 @@ void CProtocol::ParseMessageBody ( const CVector<uint8_t>& vecbyMesBodyData, con
 
                 case PROTMESSID_SPLIT_MESS_SUPPORTED:
                     EvaluateSplitMessSupportedMes();
+                    break;
+
+                case PROTMESSID_REQ_CHAT_TEXT_SUPPORT:
+                    EvaluateReqChatTextSupportMes();
+                    break;
+
+                case PROTMESSID_CHAT_TEXT_SUPPORTED:
+                    EvaluateChatTextSupportedMes();
                     break;
 
                 case PROTMESSID_RAWAUDIO_SUPPORTED:
@@ -1438,6 +1450,80 @@ bool CProtocol::EvaluateChatTextMes ( const CVector<uint8_t>& vecData )
     return false; // no error
 }
 
+void CProtocol::CreateChatTextChannelMes ( const uint8_t iChannelID, const uint32_t iTimestamp, const QString strSenderName, const QString strChatText )
+{
+    int iPos = 0; // init position pointer
+
+    // convert strings to utf-8
+    const QByteArray strUTF8SenderName = strSenderName.toUtf8();
+    const QByteArray strUTF8ChatText   = strChatText.toUtf8();
+
+    // size of message body
+    const int iEntrLen = 1 + // channel ID
+                         4 + // timestamp
+                         2 + strUTF8SenderName.size() + // sender name
+                         2 + strUTF8ChatText.size();    // chat text
+
+    // build data vector
+    CVector<uint8_t> vecData ( iEntrLen );
+
+    // channel ID
+    PutValOnStream ( vecData, iPos, iChannelID, 1 );
+
+    // timestamp (epoch seconds, UTC)
+    PutValOnStream ( vecData, iPos, iTimestamp, 4 );
+
+    // sender name
+    PutStringUTF8OnStream ( vecData, iPos, strUTF8SenderName );
+
+    // chat text
+    PutStringUTF8OnStream ( vecData, iPos, strUTF8ChatText );
+
+    CreateAndSendMessage ( PROTMESSID_CHAT_TEXT_CHANNEL, vecData );
+}
+
+bool CProtocol::EvaluateChatTextChannelMes ( const CVector<uint8_t>& vecData )
+{
+    int iPos = 0; // init position pointer
+
+    // check size: at minimum the channel ID, timestamp and both string length fields
+    if ( vecData.Size() < 1 + 4 + 2 + 2 )
+    {
+        return true; // return error code
+    }
+
+    // channel ID
+    const uint8_t iChannelID = static_cast<uint8_t> ( GetValFromStream ( vecData, iPos, 1 ) );
+
+    // timestamp
+    const uint32_t iTimestamp = static_cast<uint32_t> ( GetValFromStream ( vecData, iPos, 4 ) );
+
+    // sender name
+    QString strSenderName;
+    if ( GetStringFromStream ( vecData, iPos, MAX_LEN_FADER_TAG, strSenderName ) )
+    {
+        return true; // return error code
+    }
+
+    // chat text
+    QString strChatText;
+    if ( GetStringFromStream ( vecData, iPos, MAX_LEN_CHAT_TEXT, strChatText ) )
+    {
+        return true; // return error code
+    }
+
+    // check size: all data is read, the position must now be at the end
+    if ( iPos != vecData.Size() )
+    {
+        return true; // return error code
+    }
+
+    // invoke message action
+    emit ChatTextChannelReceived ( iChannelID, iTimestamp, strSenderName, strChatText );
+
+    return false; // no error
+}
+
 void CProtocol::CreateNetwTranspPropsMes ( const CNetworkTransportProps& NetTrProps )
 {
     int iPos = 0; // init position pointer
@@ -1580,6 +1666,26 @@ bool CProtocol::EvaluateSplitMessSupportedMes()
 {
     // invoke message action
     emit SplitMessSupported();
+
+    return false; // no error
+}
+
+void CProtocol::CreateReqChatTextSupportMes() { CreateAndSendMessage ( PROTMESSID_REQ_CHAT_TEXT_SUPPORT, CVector<uint8_t> ( 0 ) ); }
+
+bool CProtocol::EvaluateReqChatTextSupportMes()
+{
+    // invoke message action
+    emit ReqChatTextSupport();
+
+    return false; // no error
+}
+
+void CProtocol::CreateChatTextSupportedMes() { CreateAndSendMessage ( PROTMESSID_CHAT_TEXT_SUPPORTED, CVector<uint8_t> ( 0 ) ); }
+
+bool CProtocol::EvaluateChatTextSupportedMes()
+{
+    // invoke message action
+    emit ChatTextSupported();
 
     return false; // no error
 }
