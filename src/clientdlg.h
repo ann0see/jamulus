@@ -212,6 +212,7 @@ public slots:
 
     void OnConClientListMesReceived ( CVector<CChannelInfo> vecChanInfo );
     void OnChatTextReceived ( QString strChatText );
+    void OnChatTextChannelReceived ( ChatMessage chatMessage );
     void OnLicenceRequired ( ELicenceType eLicenceType );
     void OnSoundDeviceChanged ( QString strError );
 

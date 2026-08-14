@@ -46,6 +46,8 @@
 
 #include "util.h"
 
+#include <QRegularExpression>
+
 namespace
 {
 // Capture layout:
@@ -1779,4 +1781,34 @@ QString TruncateString ( QString str, int position )
         position = tbfString.position();
     }
     return str.left ( position );
+}
+
+QString EscapeAndLinkifyText ( const QString strText )
+{
+    // escape first, then linkify, so that user text can never become markup
+    QString strEscapedText = strText.toHtmlEscaped();
+    LinkifyURLs ( strEscapedText );
+    return strEscapedText;
+}
+
+void LinkifyURLs ( QString& strText )
+{
+    // searches for all occurrences of http(s) and wraps them in anchor tags;
+    // must only be applied AFTER HTML-escaping (see EscapeAndLinkifyText)
+    // The regex contains three parts:
+    // - https?://(?:[^\s&]|&(?:amp|#\d+|#[xX][0-9a-fA-F]+);)+ matches as much as
+    //   possible after the http:// or https://, stopping at whitespace and at a
+    //   bare "&" that does not start an allowed HTML entity. Only &amp; (and
+    //   numeric entities) may appear inside a URL, so query strings such as
+    //   ?a=1&b=2 survive escaping as ?a=1&amp;b=2 and are kept whole, while
+    //   escaped markup boundaries (&lt; &gt; &quot;) always terminate the match.
+    //   The last two parts exclude terminating punctuation.
+    // - (?<![!\"'()+,.:;<=>?\\[\\]{}]) is a negative look-behind assertion that disallows the match
+    //   from ending with one of the characters !"'()+,.:;<=>?[]{}
+    // - (?<!\\?[!\"'()+,.:;<=>?\\[\\]{}]) is a negative look-behind assertion that disallows the match
+    //   from ending with a ? followed by one of the characters !"'()+,.:;<=>?[]{}
+    // These last two parts must be separate, as a look-behind assertion must be fixed length.
+#define PUNCT_NOEND_URL "[!\"'()+,.:;<=>?\\[\\]{}]"
+    strText.replace ( QRegularExpression ( "(https?://(?:[^\\s&]|&(?:amp|#\\d+|#[xX][0-9a-fA-F]+);)+(?<!" PUNCT_NOEND_URL ")(?<!\\?" PUNCT_NOEND_URL "))" ),
+                      "<a href=\"\\1\">\\1</a>" );
 }

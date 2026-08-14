@@ -46,7 +46,20 @@
 
 #include "chatdlg.h"
 
+#include <QDateTime>
+#include <QLocale>
+#if QT_VERSION >= QT_VERSION_CHECK( 6, 8, 0 )
+#    include <QAccessibleAnnouncementEvent>
+#endif
+
 /* Implementation *************************************************************/
+namespace
+{
+// client-controlled sender colours, stable per channel ID (presentation is a
+// client concern; the server only sends data)
+const char* const astrChatColors[6] = { "mediumblue", "red", "darkorchid", "green", "maroon", "coral" };
+}
+
 CChatDlg::CChatDlg ( QWidget* parent ) : CBaseDlg ( parent, Qt::Window ) // use Qt::Window to get min/max window buttons
 {
     setupUi ( this );
@@ -133,31 +146,66 @@ void CChatDlg::OnClearChatHistory()
 
 void CChatDlg::AddChatText ( QString strChatText )
 {
-    // notify accessibility plugin that text has changed
-    QAccessible::updateAccessibility ( new QAccessibleValueChangeEvent ( txvChatWindow, strChatText ) );
+    // legacy (message 18) path: the server sent already-escaped HTML; we only
+    // linkify bare http(s):// URLs, the text itself is never re-interpreted
+    LinkifyURLs ( strChatText );
 
-    // analyze strChatText to check if hyperlink (limit ourselves to http(s)://) but do not
-    // replace the hyperlinks if any HTML code for a hyperlink was found (the user has done the HTML
-    // coding hisself and we should not mess with that)
-    if ( !strChatText.contains ( QRegularExpression ( "href\\s*=|src\\s*=" ) ) )
-    {
-        // searches for all occurrences of http(s) and cuts until a space (\S matches any non-white-space
-        // character and the + means that matches the previous element one or more times.)
-        // This regex now contains three parts:
-        // - https?://\\S+ matches as much non-whitespace as possible after the http:// or https://,
-        //   subject to the next two parts, which exclude terminating punctuation
-        // - (?<![!\"'()+,.:;<=>?\\[\\]{}]) is a negative look-behind assertion that disallows the match
-        //   from ending with one of the characters !"'()+,.:;<=>?[]{}
-        // - (?<!\\?[!\"'()+,.:;<=>?\\[\\]{}]) is a negative look-behind assertion that disallows the match
-        //   from ending with a ? followed by one of the characters !"'()+,.:;<=>?[]{}
-        // These last two parts must be separate, as a look-behind assertion must be fixed length.
-#define PUNCT_NOEND_URL "[!\"'()+,.:;<=>?\\[\\]{}]"
-        strChatText.replace ( QRegularExpression ( "(https?://\\S+(?<!" PUNCT_NOEND_URL ")(?<!\\?" PUNCT_NOEND_URL "))" ),
-                              "<a href=\"\\1\">\\1</a>" );
-    }
+    AnnounceNewChatMessage ( strChatText );
 
     // add new text in chat window
     txvChatWindow->append ( strChatText );
+}
+
+void CChatDlg::AddChatMessage ( const ChatMessage& message )
+{
+    // announce the plain content (sender and text) to screen readers
+    QString strAnnouncement;
+    if ( !message.senderName.isEmpty() )
+    {
+        strAnnouncement = message.senderName + ": " + message.text;
+    }
+    else
+    {
+        strAnnouncement = message.text;
+    }
+    AnnounceNewChatMessage ( strAnnouncement );
+
+    // add new structured message in chat window
+    txvChatWindow->append ( FormatChatMessage ( message ) );
+}
+
+void CChatDlg::AnnounceNewChatMessage ( const QString& strAnnouncement )
+{
+#if QT_VERSION >= QT_VERSION_CHECK( 6, 8, 0 )
+    // prefer a proper live region announcement over the value-change event
+    QAccessible::updateAccessibility ( new QAccessibleAnnouncementEvent ( txvChatWindow, strAnnouncement ) );
+#else
+    QAccessible::updateAccessibility ( new QAccessibleValueChangeEvent ( txvChatWindow, strAnnouncement ) );
+#endif
+}
+
+QString CChatDlg::FormatChatMessage ( const ChatMessage& message ) const
+{
+    // the client supplies all presentation: local, locale-aware time, a stable
+    // per-channel sender colour and escaped plain text; user data is escaped so
+    // that it is never interpreted as HTML
+    const QString strTime = QLocale().toString ( QDateTime::fromSecsSinceEpoch ( message.timestamp ).toLocalTime().time(),
+                                                 QLocale::ShortFormat );
+
+    QString strSenderName = message.senderName;
+    if ( strSenderName.isEmpty() )
+    {
+        // server/RPC-originated messages carry the wire sentinel channel ID and
+        // no sender name; unknown channels get a neutral placeholder
+        strSenderName = ( message.channelId == SERVER_CHAT_CHANNEL_ID ) ? tr ( "Server" ) : tr ( "Unknown" );
+    }
+
+    const QString sCurColor = astrChatColors[message.channelId % 6];
+
+    const QString strHeader =
+        "<font color=\"" + sCurColor + "\">(" + strTime + ") <b>" + strSenderName.toHtmlEscaped() + "</b></font> ";
+
+    return strHeader + EscapeAndLinkifyText ( message.text );
 }
 
 void CChatDlg::OnAnchorClicked ( const QUrl& Url )

@@ -416,6 +416,9 @@ void CServer::OnNewConnection ( int iChID, int iTotChans, CHostAddress RecHostAd
     // query support for split messages in the client
     vecChannels[iChID].CreateReqSplitMessSupportMes();
 
+    // query support for structured chat text in the client
+    vecChannels[iChID].CreateReqChatTextSupportMes();
+
     // on a new connection we query the network transport properties for the
     // audio packets (to use the correct network block size and audio
     // compression properties, etc.)
@@ -1349,35 +1352,58 @@ void CServer::CreateAndSendChanListForThisChan ( const int iCurChanID )
     vecChannels[iCurChanID].CreateConClientListMes ( vecChanInfo );
 }
 
-void CServer::CreateAndSendChatTextForAllConChannels ( const int iCurChanID, const QString& strChatText )
+void CServer::CreateAndSendChatTextForAllConChannels ( const int iSendingChanID, const QString& strChatText )
 {
-    // Create message which is sent to all connected clients -------------------
-    // get client name
-    QString ChanName = vecChannels[iCurChanID].GetName();
+    // clamp to the maximum chat text length up front
+    const QString strClampedChatText = strChatText.left ( MAX_LEN_CHAT_TEXT );
 
-    // add time and name of the client at the beginning of the message text and
-    // use different colors
-    QString sCurColor = vstrChatColors[iCurChanID % vstrChatColors.Size()];
+    // timestamp stamped at fan-out (epoch seconds, UTC)
+    const uint32_t iTimestamp = static_cast<uint32_t> ( QDateTime::currentSecsSinceEpoch() );
 
-    const QString strActualMessageText = "<font color=\"" + sCurColor + "\">(" + QTime::currentTime().toString ( "hh:mm:ss AP" ) + ") <b>" +
-                                         ChanName.toHtmlEscaped() + "</b></font> " + strChatText.toHtmlEscaped();
+    // determine source channel ID and sender name before indexing vecChannels;
+    // RPC messages (no sender channel) map to the wire sentinel ID 255 and get
+    // an empty sender name
+    int     iSourceChanID = iSendingChanID;
+    QString strSenderName;
+    if ( iSendingChanID == INVALID_CLIENT_ID )
+    {
+        iSourceChanID = SERVER_CHAT_CHANNEL_ID;
+    }
+    else
+    {
+        strSenderName = vecChannels[iSendingChanID].GetName();
+    }
 
-    // Send chat text to all connected clients ---------------------------------
-    SendChatTextToAllConChannels ( iCurChanID, strActualMessageText );
-}
-
-void CServer::SendChatTextToAllConChannels ( const int iSendingChanID, const QString& strChatText )
-{
     // Send chat text to all connected clients ---------------------------------
     for ( int i = 0; i < iMaxNumChannels; i++ )
     {
         if ( vecChannels[i].IsConnected() )
         {
-            vecChannels[i].CreateChatTextMes ( strChatText );
+            SendChatTextToConChannelWithSource ( i, iSourceChanID, iTimestamp, strSenderName, strClampedChatText );
         }
     }
     // forward the message to the RPC server
-    emit sentChatMessage ( iSendingChanID, strChatText );
+    emit sentChatMessage ( iSendingChanID, iTimestamp, strSenderName, strClampedChatText );
+}
+
+void CServer::SendChatTextToConChannelWithSource ( const int iCurChanID, const int iSourceChanID, const uint32_t iTimestamp, const QString& strSenderName, const QString& strChatText )
+{
+    if ( vecChannels[iCurChanID].SupportsStructuredChat() )
+    {
+        // structured chat text (message 37): plain data, no presentation markup
+        vecChannels[iCurChanID].CreateChatTextChannelMes ( iSourceChanID, iTimestamp, strSenderName, strChatText );
+    }
+    else
+    {
+        // legacy chat text (message 18): server-generated HTML with escaped
+        // name and text and a per-source color
+        const QString sCurColor = vstrChatColors[iSourceChanID % vstrChatColors.Size()];
+
+        const QString strActualMessageText = "<font color=\"" + sCurColor + "\">(" + QTime::currentTime().toString ( "hh:mm:ss AP" ) + ") <b>" +
+                                             strSenderName.toHtmlEscaped() + "</b></font> " + strChatText.toHtmlEscaped();
+
+        vecChannels[iCurChanID].CreateChatTextMes ( strActualMessageText );
+    }
 }
 
 bool CServer::SendChatTextToConChannel ( const int iCurChanID, const QString& strChatText )
@@ -1387,8 +1413,13 @@ bool CServer::SendChatTextToConChannel ( const int iCurChanID, const QString& st
     {
         return false;
     }
-    // send message
-    vecChannels[iCurChanID].CreateChatTextMes ( strChatText );
+
+    // route the private message through the same fan-out logic as broadcast
+    // chat (RPC-originated: wire sentinel ID 255, no sender name)
+    const QString  strClampedChatText = strChatText.left ( MAX_LEN_CHAT_TEXT );
+    const uint32_t iTimestamp         = static_cast<uint32_t> ( QDateTime::currentSecsSinceEpoch() );
+
+    SendChatTextToConChannelWithSource ( iCurChanID, SERVER_CHAT_CHANNEL_ID, iTimestamp, QString(), strClampedChatText );
     return true;
 }
 

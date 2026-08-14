@@ -111,8 +111,9 @@ public:
 
     void ResetInfo()
     {
-        bIsIdentified = false;
-        ChannelInfo   = CChannelCoreInfo();
+        bIsIdentified           = false;
+        bSupportsStructuredChat = false;
+        ChannelInfo             = CChannelCoreInfo();
     } // reset does not emit a message
     QString           GetName();
     void              SetChanInfo ( const CChannelCoreInfo& NChanInf );
@@ -178,6 +179,10 @@ public:
     void CreateReqJitBufMes() { Protocol.CreateReqJitBufMes(); }
     void CreateReqConnClientsList() { Protocol.CreateReqConnClientsList(); }
     void CreateChatTextMes ( const QString& strChatText ) { Protocol.CreateChatTextMes ( strChatText ); }
+    void CreateChatTextChannelMes ( const uint8_t iChannelID, const uint32_t iTimestamp, const QString strSenderName, const QString strChatText ) { Protocol.CreateChatTextChannelMes ( iChannelID, iTimestamp, strSenderName, strChatText ); }
+    void CreateReqChatTextSupportMes() { Protocol.CreateReqChatTextSupportMes(); }
+    void CreateChatTextSupportedMes() { Protocol.CreateChatTextSupportedMes(); }
+    bool SupportsStructuredChat() const { return bSupportsStructuredChat; }
     void CreateLicReqMes ( const ELicenceType eLicenceType ) { Protocol.CreateLicenceRequiredMes ( eLicenceType ); }
 
     //### TODO: BEGIN ###//
@@ -224,6 +229,7 @@ protected:
     int              iCurSockBufNumFrames;
     bool             bDoAutoSockBufSize;
     bool             bUseSequenceNumber;
+    bool             bSupportsStructuredChat;
     uint8_t          iSendSequenceNumber;
 
     // network output conversion buffer
@@ -265,6 +271,8 @@ public slots:
     void OnReqNetTranspProps();
     void OnReqSplitMessSupport();
     void OnSplitMessSupported() { Protocol.SetSplitMessageSupported ( true ); }
+    void OnReqChatTextSupport() { Protocol.CreateChatTextSupportedMes(); }
+    void OnChatTextSupported() { bSupportsStructuredChat = true; }
 
     void OnVersionAndOSReceived ( COSUtil::EOpSystemType eOSType, QString strVersion );
 
@@ -301,6 +309,7 @@ signals:
     void MuteStateHasChangedReceived ( int iChanID, bool bIsMuted );
     void ReqChanInfo();
     void ChatTextReceived ( QString strChatText );
+    void ChatTextChannelReceived ( uint8_t iChannelID, uint32_t iTimestamp, QString strSenderName, QString strChatText );
     void ReqNetTranspProps();
     void LicenceRequired ( ELicenceType eLicenceType );
     void VersionAndOSReceived ( COSUtil::EOpSystemType eOSType, QString strVersion );

@@ -59,6 +59,7 @@
 #include <QRegularExpression>
 #include "global.h"
 #include "util.h"
+#include "chatmessage.h"
 #include "ui_chatdlgbase.h"
 
 /* Classes ********************************************************************/
@@ -70,6 +71,7 @@ public:
     CChatDlg ( QWidget* parent = nullptr );
 
     void AddChatText ( QString strChatText );
+    void AddChatMessage ( const ChatMessage& message );
 
 public slots:
     void OnSendText();
@@ -82,4 +84,8 @@ public slots:
 
 signals:
     void NewLocalInputText ( QString strNewText );
+
+private:
+    void AnnounceNewChatMessage ( const QString& strAnnouncement );
+    QString FormatChatMessage ( const ChatMessage& message ) const;
 };
