@@ -357,6 +357,16 @@ float CChannel::GetPan ( const int iChanID )
     }
 }
 
+void CChannel::GetGainsAndPannings ( CVector<float>& vecGains, CVector<float>& vecPannings )
+{
+    QMutexLocker locker ( &Mutex );
+
+    // copy the gain and pan values under a single lock instead of acquiring the
+    // mutex once per value
+    vecGains    = vecfGains;
+    vecPannings = vecfPannings;
+}
+
 void CChannel::SetChanInfo ( const CChannelCoreInfo& NChanInf )
 {
     // apply value (if a new channel or different from previous one)
