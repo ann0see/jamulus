@@ -1,7 +1,14 @@
 ## Posting (comments, issues, discussions)
 
-- Test any claim you can test before posting it — a build, a log, a run — and cut what you can't; *presumably*, *should*, and *likely* mark sentences that need a measurement or deletion.
-- Comment only when you add evidence or an answer the thread lacks, in the shortest form that carries it; wait out an active human exchange, re-read the thread just before posting — it may have moved while you drafted — and treat a maintainer's stated preference about engagement as the rule.
-- If a posted comment proves wrong or incomplete, edit it in place so the error leaves the page; new evidence on the same finding also belongs in the existing comment, not a new one.
-- Open a new issue only for a defect you can reproduce, with the reproduction in the body; open a new PR only after a maintainer has agreed the change is wanted; leave starting discussions to humans.
-- Disclose AI-generated text
+What is expected of anyone posting here is in
+[CONTRIBUTING.md § Commenting and reviewing](../../CONTRIBUTING.md#commenting-and-reviewing): test
+what you can test before claiming it, comment where you add evidence or an answer the thread does
+not have yet, edit a comment in place when it turns out to be wrong, and put the reproduction in
+the body of a defect report. Disclosure of AI-generated text is in
+[Using AI](../../CONTRIBUTING.md#using-ai). Those apply to an agent exactly as they apply to a
+person, so they are not repeated here.
+
+Only these are specific to an agent:
+
+- Leave the starting of new discussions to humans.
+- If a maintainer states how they want to be engaged, that is the rule for that person and that thread.
