@@ -85,6 +85,9 @@
 #define PROTMESSID_REQ_SPLIT_MESS_SUPPORT   34 // request support for split messages
 #define PROTMESSID_SPLIT_MESS_SUPPORTED     35 // split messages are supported
 #define PROTMESSID_RAWAUDIO_SUPPORTED       36 // raw (uncompressed) audio is supported
+#define PROTMESSID_CHAT_TEXT_CHANNEL        37 // chat text with source channel ID, timestamp and sender name
+#define PROTMESSID_REQ_CHAT_TEXT_SUPPORT    38 // request support for structured chat text
+#define PROTMESSID_CHAT_TEXT_SUPPORTED      39 // structured chat text is supported
 
 // message IDs of connection less messages (CLM)
 // DEFINITION -> start at 1000, end at 1999, see IsConnectionLessMessageID
@@ -147,10 +150,13 @@ public:
     void CreateChanInfoMes ( const CChannelCoreInfo ChanInfo );
     void CreateReqChanInfoMes();
     void CreateChatTextMes ( const QString strChatText );
+    void CreateChatTextChannelMes ( const uint8_t iChannelID, const uint32_t iTimestamp, const QString strSenderName, const QString strChatText );
     void CreateNetwTranspPropsMes ( const CNetworkTransportProps& NetTrProps );
     void CreateReqNetwTranspPropsMes();
     void CreateReqSplitMessSupportMes();
     void CreateSplitMessSupportedMes();
+    void CreateReqChatTextSupportMes();
+    void CreateChatTextSupportedMes();
     void CreateRawAudioSupportedMes();
     void CreateLicenceRequiredMes ( const ELicenceType eLicenceType );
     void CreateOpusSupportedMes();
@@ -284,10 +290,13 @@ protected:
     bool EvaluateChanInfoMes ( const CVector<uint8_t>& vecData );
     bool EvaluateReqChanInfoMes();
     bool EvaluateChatTextMes ( const CVector<uint8_t>& vecData );
+    bool EvaluateChatTextChannelMes ( const CVector<uint8_t>& vecData );
     bool EvaluateNetwTranspPropsMes ( const CVector<uint8_t>& vecData );
     bool EvaluateReqNetwTranspPropsMes();
     bool EvaluateReqSplitMessSupportMes();
     bool EvaluateSplitMessSupportedMes();
+    bool EvaluateReqChatTextSupportMes();
+    bool EvaluateChatTextSupportedMes();
     bool EvaluateRawAudioSupportedMes();
     bool EvaluateLicenceRequiredMes ( const CVector<uint8_t>& vecData );
     bool EvaluateVersionAndOSMes ( const CVector<uint8_t>& vecData );
@@ -350,10 +359,13 @@ signals:
     void ChangeChanInfo ( CChannelCoreInfo ChanInfo );
     void ReqChanInfo();
     void ChatTextReceived ( QString strChatText );
+    void ChatTextChannelReceived ( uint8_t iChannelID, uint32_t iTimestamp, QString strSenderName, QString strChatText );
     void NetTranspPropsReceived ( CNetworkTransportProps NetworkTransportProps );
     void ReqNetTranspProps();
     void ReqSplitMessSupport();
     void SplitMessSupported();
+    void ReqChatTextSupport();
+    void ChatTextSupported();
     void RawAudioSupported();
     void LicenceRequired ( ELicenceType eLicenceType );
     void VersionAndOSReceived ( COSUtil::EOpSystemType eOSType, QString strVersion );

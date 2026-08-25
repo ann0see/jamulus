@@ -506,6 +506,8 @@ CClientDlg::CClientDlg ( CClient*         pNCliP,
 
     QObject::connect ( pClient, &CClient::ChatTextReceived, this, &CClientDlg::OnChatTextReceived );
 
+    QObject::connect ( pClient, &CClient::ChatTextChannelReceived, this, &CClientDlg::OnChatTextChannelReceived );
+
     QObject::connect ( pClient, &CClient::ClientIDReceived, this, &CClientDlg::OnClientIDReceived );
 
     QObject::connect ( pClient, &CClient::MuteStateHasChangedReceived, this, &CClientDlg::OnMuteStateHasChangedReceived );
@@ -872,6 +874,21 @@ void CClientDlg::OnChatTextReceived ( QString strChatText )
     // other new chat texts we do not want to force the dialog to be upfront
     // always when a new message arrives since this is annoying.
     ShowChatWindow ( ( strChatText.indexOf ( WELCOME_MESSAGE_PREFIX ) == 0 ) );
+
+    UpdateDisplay();
+}
+
+void CClientDlg::OnChatTextChannelReceived ( ChatMessage chatMessage )
+{
+    if ( pSettings->bEnableAudioAlerts )
+    {
+        PlayAudioAlert ( QUrl::fromLocalFile ( ":sounds/res/sounds/new_message.wav" ) );
+    }
+    ChatDlg.AddChatMessage ( chatMessage );
+
+    // structured messages never carry the server welcome message (that stays
+    // on the legacy path), so never force the dialog to be upfront
+    ShowChatWindow ( false );
 
     UpdateDisplay();
 }

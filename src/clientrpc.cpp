@@ -52,12 +52,18 @@ CClientRpc::CClientRpc ( CClient* pClient, CClientSettings* pSettings, CRpcServe
     m_pSettings ( pSettings )
 {
     /// @rpc_notification jamulusclient/chatTextReceived
-    /// @brief Emitted when a chat text is received.
-    /// @param {string} params.chatText - The chat text.
-    connect ( pClient, &CClient::ChatTextReceived, [=] ( QString strChatText ) {
+    /// @brief Emitted when a structured chat message (message 37) is received. Carries semantic data, never presentation markup.
+    /// @param {number} params.channelId - Channel ID of the sending client, or 255 for server/RPC-originated messages.
+    /// @param {number} params.timestamp - Unix timestamp (seconds) stamped at the server.
+    /// @param {string} params.senderName - Name of the sending client (empty for server/RPC-originated messages).
+    /// @param {string} params.text - Chat message text.
+    connect ( pClient, &CClient::ChatTextChannelReceived, [=] ( ChatMessage chatMessage ) {
         pRpcServer->BroadcastNotification ( "jamulusclient/chatTextReceived",
                                             QJsonObject{
-                                                { "chatText", strChatText },
+                                                { "channelId", static_cast<int> ( chatMessage.channelId ) },
+                                                { "timestamp", static_cast<qint64> ( chatMessage.timestamp ) },
+                                                { "senderName", chatMessage.senderName },
+                                                { "text", chatMessage.text },
                                             } );
     } );
 

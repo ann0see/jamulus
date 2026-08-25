@@ -48,6 +48,8 @@
 #include "settings.h"
 #include "util.h"
 
+#include <utility>
+
 /* Implementation *************************************************************/
 CClient::CClient ( const quint16  iPortNumber,
                    const quint16  iQosNumber,
@@ -151,6 +153,8 @@ CClient::CClient ( const quint16  iPortNumber,
     QObject::connect ( &Channel, &CChannel::NewConnection, this, &CClient::OnNewConnection );
 
     QObject::connect ( &Channel, &CChannel::ChatTextReceived, this, &CClient::ChatTextReceived );
+
+    QObject::connect ( &Channel, &CChannel::ChatTextChannelReceived, this, &CClient::OnChatTextChannelReceived );
 
     QObject::connect ( &Channel, &CChannel::ClientIDReceived, this, &CClient::OnClientIDReceived );
 
@@ -419,6 +423,13 @@ void CClient::OnConClientListMesReceived ( CVector<CChannelInfo> vecChanInfo )
     // pass the received list onwards, now containing client channel IDs
 
     emit ConClientListMesReceived ( vecChanInfo );
+}
+
+void CClient::OnChatTextChannelReceived ( uint8_t iChannelID, uint32_t iTimestamp, QString strSenderName, QString strChatText )
+{
+    // build the semantic chat message and pass it on to the model/presentation
+    // layer; senderName is the wire snapshot, no live lookup is needed
+    emit ChatTextChannelReceived ( ChatMessage{ iChannelID, iTimestamp, std::move ( strSenderName ), std::move ( strChatText ) } );
 }
 
 void CClient::CreateServerJitterBufferMessage()

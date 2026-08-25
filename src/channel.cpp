@@ -53,6 +53,7 @@ CChannel::CChannel ( const bool bNIsServer ) :
     iCurSockBufNumFrames ( INVALID_INDEX ),
     bDoAutoSockBufSize ( true ),
     bUseSequenceNumber ( false ), // this is important since in the client we reset on Channel.SetEnable ( false )
+    bSupportsStructuredChat ( false ),
     iSendSequenceNumber ( 0 ),
     iFadeInCnt ( 0 ),
     iFadeInCntMax ( FADE_IN_NUM_FRAMES_DBLE_FRAMESIZE ),
@@ -113,6 +114,8 @@ CChannel::CChannel ( const bool bNIsServer ) :
 
     QObject::connect ( &Protocol, &CProtocol::ChatTextReceived, this, &CChannel::ChatTextReceived );
 
+    QObject::connect ( &Protocol, &CProtocol::ChatTextChannelReceived, this, &CChannel::ChatTextChannelReceived );
+
     QObject::connect ( &Protocol, &CProtocol::NetTranspPropsReceived, this, &CChannel::OnNetTranspPropsReceived );
 
     QObject::connect ( &Protocol, &CProtocol::ReqNetTranspProps, this, &CChannel::OnReqNetTranspProps );
@@ -120,6 +123,10 @@ CChannel::CChannel ( const bool bNIsServer ) :
     QObject::connect ( &Protocol, &CProtocol::ReqSplitMessSupport, this, &CChannel::OnReqSplitMessSupport );
 
     QObject::connect ( &Protocol, &CProtocol::SplitMessSupported, this, &CChannel::OnSplitMessSupported );
+
+    QObject::connect ( &Protocol, &CProtocol::ReqChatTextSupport, this, &CChannel::OnReqChatTextSupport );
+
+    QObject::connect ( &Protocol, &CProtocol::ChatTextSupported, this, &CChannel::OnChatTextSupported );
 
     QObject::connect ( &Protocol, &CProtocol::LicenceRequired, this, &CChannel::LicenceRequired );
 

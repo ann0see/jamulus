@@ -47,9 +47,6 @@
 
 #include "serverrpc.h"
 
-/* Definitions ****************************************************************/
-#define INVALID_CLIENT_ID -1
-
 CServerRpc::CServerRpc ( CServer* pServer, CRpcServer* pRpcServer, QObject* parent ) : QObject ( parent )
 {
     // API doc already part of CClientRpc
@@ -85,13 +82,17 @@ CServerRpc::CServerRpc ( CServer* pServer, CRpcServer* pRpcServer, QObject* pare
 
     /// @rpc_notification jamulusserver/chatMessageReceived
     /// @brief Emitted when a chat message is received from either a Jamulus or RPC client and to be broadcast to all connected clients.
-    /// @param {number} params.id - Channel ID of sending client or -1 for RPC sent messages.
-    /// @param {string} params.chatMessage - Chat message text.
-    connect ( pServer, &CServer::sentChatMessage, [=] ( const int iSendingChanID, const QString& strChatText ) {
+    /// @param {number} params.channelId - Channel ID of sending client or -1 for RPC sent messages.
+    /// @param {number} params.timestamp - Unix timestamp (seconds) stamped at the server.
+    /// @param {string} params.senderName - Name of the sending client (empty for RPC sent messages).
+    /// @param {string} params.text - Chat message text.
+    connect ( pServer, &CServer::sentChatMessage, [=] ( const int iSendingChanID, const uint32_t iTimestamp, const QString& strSenderName, const QString& strChatText ) {
         pRpcServer->BroadcastNotification ( "jamulusserver/chatMessageReceived",
                                             QJsonObject{
-                                                { "id", iSendingChanID },
-                                                { "chatMessage", strChatText },
+                                                { "channelId", iSendingChanID },
+                                                { "timestamp", static_cast<qint64> ( iTimestamp ) },
+                                                { "senderName", strSenderName },
+                                                { "text", strChatText },
                                             } );
     } );
 
@@ -109,7 +110,7 @@ CServerRpc::CServerRpc ( CServer* pServer, CRpcServer* pRpcServer, QObject* pare
         }
 
         // set invalid channel ID to make clear this message was not sent by a Jamulus client
-        pServer->SendChatTextToAllConChannels ( INVALID_CLIENT_ID, jsonChatMessage.toString() );
+        pServer->CreateAndSendChatTextForAllConChannels ( INVALID_CLIENT_ID, jsonChatMessage.toString() );
         response["result"] = "ok";
     } );
 

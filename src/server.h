@@ -193,7 +193,7 @@ public:
     void SetEnableDelayPanning ( bool bDelayPanningOn ) { bDelayPan = bDelayPanningOn; }
     bool IsDelayPanningEnabled() { return bDelayPan; }
 
-    void SendChatTextToAllConChannels ( const int iSendingChanID, const QString& strChatText );
+    void CreateAndSendChatTextForAllConChannels ( const int iSendingChanID, const QString& strChatText );
     bool SendChatTextToConChannel ( const int iCurChanID, const QString& strChatText );
 
 protected:
@@ -209,7 +209,7 @@ protected:
     virtual void CreateAndSendChanListForAllConChannels();
     virtual void CreateAndSendChanListForThisChan ( const int iCurChanID );
 
-    virtual void CreateAndSendChatTextForAllConChannels ( const int iCurChanID, const QString& strChatText );
+    void SendChatTextToConChannelWithSource ( const int iCurChanID, const int iSourceChanID, const uint32_t iTimestamp, const QString& strSenderName, const QString& strChatText );
 
     virtual void CreateOtherMuteStateChanged ( const int iCurChanID, const int iOtherChanID, const bool bIsMuted );
 
@@ -331,7 +331,7 @@ signals:
     void Stopped();
     void ClientDisconnected ( const int iChID );
     void ClientConnected ( const int iChID, const QHostAddress RecHostAddr, const int iTotChans );
-    void sentChatMessage ( const int iSendingChanID, const QString& strChatText );
+    void sentChatMessage ( const int iSendingChanID, const uint32_t iTimestamp, const QString& strSenderName, const QString& strChatText );
     void SvrRegStatusChanged();
     void AudioFrame ( const int              iChID,
                       const QString          stChName,

@@ -61,6 +61,7 @@
 #include "socket.h"
 #include "channel.h"
 #include "util.h"
+#include "chatmessage.h"
 #include "plugins/audioreverb.h"
 #include "buffer.h"
 #include "signalhandler.h"
@@ -514,10 +515,12 @@ protected slots:
     void OnMuteStateHasChangedReceived ( int iServerChanID, bool bIsMuted );
     void OnCLChannelLevelListReceived ( CHostAddress InetAddr, CVector<uint16_t> vecLevelList );
     void OnConClientListMesReceived ( CVector<CChannelInfo> vecChanInfo );
+    void OnChatTextChannelReceived ( uint8_t iChannelID, uint32_t iTimestamp, QString strSenderName, QString strChatText );
 
 signals:
     void ConClientListMesReceived ( CVector<CChannelInfo> vecChanInfo );
     void ChatTextReceived ( QString strChatText );
+    void ChatTextChannelReceived ( ChatMessage chatMessage );
     void ClientIDReceived ( int iChanID );
     void MuteStateHasChangedReceived ( int iChanID, bool bIsMuted );
     void LicenceRequired ( ELicenceType eLicenceType );
