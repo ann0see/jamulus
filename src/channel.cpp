@@ -315,21 +315,6 @@ void CChannel::SetGain ( const int iChanID, const float fNewGain )
     }
 }
 
-float CChannel::GetGain ( const int iChanID )
-{
-    QMutexLocker locker ( &Mutex );
-
-    // get value (make sure channel ID is in range)
-    if ( ( iChanID >= 0 ) && ( iChanID < MAX_NUM_CHANNELS ) )
-    {
-        return vecfGains[iChanID];
-    }
-    else
-    {
-        return 0;
-    }
-}
-
 void CChannel::SetPan ( const int iChanID, const float fNewPan )
 {
     QMutexLocker locker ( &Mutex );
@@ -338,21 +323,6 @@ void CChannel::SetPan ( const int iChanID, const float fNewPan )
     if ( ( iChanID >= 0 ) && ( iChanID < MAX_NUM_CHANNELS ) )
     {
         vecfPannings[iChanID] = fNewPan;
-    }
-}
-
-float CChannel::GetPan ( const int iChanID )
-{
-    QMutexLocker locker ( &Mutex );
-
-    // get value (make sure channel ID is in range)
-    if ( ( iChanID >= 0 ) && ( iChanID < MAX_NUM_CHANNELS ) )
-    {
-        return vecfPannings[iChanID];
-    }
-    else
-    {
-        return 0;
     }
 }
 
