@@ -174,8 +174,6 @@ CServer::CServer ( const int          iNewMaxNumChan,
     vecChanIDsCurConChan.Init ( iMaxNumChannels );
     vecvecfGains.Init ( iMaxNumChannels );
     vecvecfPannings.Init ( iMaxNumChannels );
-    vecvecfGainsSnapshot.Init ( iMaxNumChannels );
-    vecvecfPanningsSnapshot.Init ( iMaxNumChannels );
     vecvecsData.Init ( iMaxNumChannels );
     vecvecsData2.Init ( iMaxNumChannels );
     vecvecsSendData.Init ( iMaxNumChannels );
