@@ -131,7 +131,7 @@ public:
     void  SetPan ( const int iChanID, const float fNewPan );
     float GetPan ( const int iChanID );
 
-    void GetGainsAndPannings ( CVector<float>& vecGains, CVector<float>& vecPannings );
+    void GetGainsAndPannings ( const CVector<int>& vecChanIDs, const int iNumClients, CVector<float>& vecGains, CVector<float>& vecPannings );
 
     void SetRemoteChanGain ( const int iId, const float fGain ) { Protocol.CreateChanGainMes ( iId, fGain ); }
 
