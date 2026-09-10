@@ -279,8 +279,6 @@ protected:
 
     CVector<CVector<float>>   vecvecfGains;
     CVector<CVector<float>>   vecvecfPannings;
-    CVector<CVector<float>>   vecvecfGainsSnapshot;
-    CVector<CVector<float>>   vecvecfPanningsSnapshot;
     CVector<CVector<int16_t>> vecvecsData;
     CVector<CVector<int16_t>> vecvecsData2;
     CVector<int>              vecNumAudioChannels;
