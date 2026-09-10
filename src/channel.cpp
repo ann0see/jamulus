@@ -356,14 +356,28 @@ float CChannel::GetPan ( const int iChanID )
     }
 }
 
-void CChannel::GetGainsAndPannings ( CVector<float>& vecGains, CVector<float>& vecPannings )
+void CChannel::GetGainsAndPannings ( const CVector<int>& vecChanIDs, const int iNumClients, CVector<float>& vecGains, CVector<float>& vecPannings )
 {
     QMutexLocker locker ( &Mutex );
 
-    // copy the gain and pan values under a single lock instead of acquiring the
-    // mutex once per value
-    vecGains    = vecfGains;
-    vecPannings = vecfPannings;
+    // copy the gain and pan values of the connected channels under a
+    // single lock, compacted to the caller's channel order; out-of-range
+    // channel IDs get zero gain and pan
+    for ( int j = 0; j < iNumClients; j++ )
+    {
+        const int iChanID = vecChanIDs[j];
+
+        if ( ( iChanID >= 0 ) && ( iChanID < MAX_NUM_CHANNELS ) )
+        {
+            vecGains[j]    = vecfGains[iChanID];
+            vecPannings[j] = vecfPannings[iChanID];
+        }
+        else
+        {
+            vecGains[j]    = 0;
+            vecPannings[j] = 0;
+        }
+    }
 }
 
 void CChannel::SetChanInfo ( const CChannelCoreInfo& NChanInf )
