@@ -189,8 +189,6 @@ CServer::CServer ( const int          iNewMaxNumChan,
         // init vectors storing information of all channels
         vecvecfGains[i].Init ( iMaxNumChannels );
         vecvecfPannings[i].Init ( iMaxNumChannels );
-        vecvecfGainsSnapshot[i].Init ( MAX_NUM_CHANNELS );
-        vecvecfPanningsSnapshot[i].Init ( MAX_NUM_CHANNELS );
 
         // we always use stereo audio buffers (which is the worst case)
         vecvecsData[i].Init ( 2 /* stereo */ * DOUBLE_SYSTEM_FRAME_SIZE_SAMPLES /* worst case buffer size */ );
