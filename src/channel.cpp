@@ -327,6 +327,11 @@ void CChannel::SetPan ( const int iChanID, const float fNewPan )
     }
 }
 
+/// @brief Copies a consistent snapshot of gain and panning settings for the requested channel IDs.
+/// @param vecChanIDs Channel IDs to read, in the order used for the output vectors.
+/// @param iNumClients Number of leading entries to read and populate. All three vectors must contain at least this many entries.
+/// @param vecGains Receives each requested channel's gain, or zero for an out-of-range channel ID.
+/// @param vecPannings Receives each requested channel's panning, or zero for an out-of-range channel ID.
 void CChannel::GetGainsAndPannings ( const CVector<int>& vecChanIDs, const int iNumClients, CVector<float>& vecGains, CVector<float>& vecPannings )
 {
     QMutexLocker locker ( &Mutex );
