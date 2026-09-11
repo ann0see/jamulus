@@ -831,6 +831,11 @@ void CServer::MixEncodeTransmitDataBlocks ( CServer* pServer, const int iStartCh
     }
 }
 
+/// @brief Prepares one connected client's received audio and mixer settings for the current server frame.
+///        A detected disconnection notifies observers and frees the channel.
+/// @param iChanCnt Index of the client in the current compacted list of connected channels.
+/// @param iNumClients Number of clients in the current compacted list.
+/// @emit ClientDisconnected if reading the client's data detects a disconnection.
 void CServer::DecodeReceiveData ( const int iChanCnt, const int iNumClients )
 {
     int                iUnused;
