@@ -4,10 +4,11 @@ This document records a measurement-driven investigation of the Jamulus 3.12.5 s
 audio path and the optimizations that followed. Raw per-frame data and the step-by-step
 log live in `WORKLOG.md`; this file is the consolidated result.
 
-All measurements used the 3.12.5 code line (`r3_12_5`, git `0b7c78eb`); the code PR that
-implements the optimizations is rebased onto this repo's `main`.
-The `tmp/` raw CSV files referenced in the text are local-only harness output, not part of
-the repo.
+Initial measurements used the 3.12.5 code line (`r3_12_5`, git `0b7c78eb`); the code changes
+were then also measured on this repo's `main` (fork `main` HEAD `292506e`) — see §5b. The
+changes live in separate PRs (#324, #325; the uniform-mix fast path in §4 was prototyped and
+dropped). The `tmp/` raw CSV files referenced in the text are local-only harness output, not
+part of the repo.
 
 Environment: macOS, Apple M4 Pro (12 cores, 8P+4E), Qt 6.11.1, Jamulus 3.12.5 (git `0b7c78eb`).
 
@@ -91,67 +92,93 @@ opus_custom_encoder_ctl ( Opus64EncoderMono[i],   OPUS_SET_COMPLEXITY ( 1 ) );
 opus_custom_encoder_ctl ( Opus64EncoderStereo[i], OPUS_SET_COMPLEXITY ( 1 ) );
 ```
 
-**Result (fastupdate, 8 clients):**
+**Result.**
+
+On 3.12.5 the isolated Step-1 measurement (WORKLOG §5, CSV) was 8c `-F` mean 929 → 150 µs,
+p95 1829 → 230 µs, over-budget 26.7% → 0.0% — the fastupdate encode path genuinely ran at
+default complexity 10 there.
+
+Isolated measurement on fork `main` (BASE → with this change alone):
 
 | | mean | p50 | p95 | p99 | over 1333 µs |
 |---|---|---|---|---|---|
-| before | 929 | 846 | 1829 | 2118 | 26.7% |
-| after | **150** | **145** | **230** | **300** | **0.0%** |
+| 8c `-F` before → after | 132 → 134 | 131 → 122 | 222 → 239 | 292 → 312 | 0.0% → 0.0% |
+| 16c `-F` before → after | 235 → 244 | 209 → 215 | 449 → 464 | 522 → 580 | 0.0% → 0.0% |
+
+Neutral within measurement noise on `main`, which is already ~13× faster there. The change is
+kept for consistency/safety margin, with the quality-vs-CPU tradeoff at 64-sample frames still
+open for review.
 
 ### Win 2 — thread-pool block count caused ~5× sync overhead
 
 **Root cause.** `OnTimer` split each frame into `iNumBlocks = min(iNumClients, iMaxNumThreads)`
 blocks and enqueued one pool task per block. `CThreadPool::enqueue` allocates a
 `shared_ptr<packaged_task>` + bound closure per task, takes a mutex, and signals a condition
-variable; the timer thread then `future.wait()`s each one. With 16 clients this meant
-**12 tasks per wave, each doing only 1–2 encodes**, and two waves per frame (decode + mix).
-The per-task sync cost dwarfed the useful work, which is why `-T` showed no median benefit.
+variable; the timer thread then `future.wait()`s each one. At high client counts
+(`n > threads`) the pool did **12+ tasks per wave each carrying only 1–2 encodes**, and two
+waves per frame (decode + mix); the per-task sync cost is real but only dominates when blocks
+outnumber useful work, i.e. roughly at ≥ 2× the core count.
 
 **Fix.** Target ~3 clients per block so each task carries real work:
 
 ```cpp
 // was: iNumBlocks = std::min ( iNumClients, iMaxNumThreads );
 iNumBlocks = std::min ( ( iNumClients + 2 ) / 3, iMaxNumThreads );
-// 16 clients -> 6 blocks (~3 clients each) instead of 12 blocks (1-2 each)
+// e.g. 24 clients -> 8 blocks (~3 clients each) instead of 12 blocks (2 each)
 ```
 
-**Result (`-T`, 16 clients, 128s):**
+**Result.**
 
-| | mean | p50 | p95 | p99 | over 2667 µs |
-|---|---|---|---|---|---|
-| before | 2052 | 2131 | 2695 | 3780 | 5.3% |
-| after | **406** | **378** | **594** | **649** | **0.0%** |
+On 3.12.5 the isolated Step-2 measurement (WORKLOG §5, CSV) was `-T` 16c mean 2052 → 406 µs,
+p95 2695 → 594 µs, over-budget 5.3% → 0.0% (the further drop to 276 µs in the old combined
+run came from all three steps incl. the since-dropped uniform mix).
 
-## 4. The remaining optimization (implemented)
+Isolated measurement on fork `main` (BASE → with this change alone, pooled over 3 runs):
+
+| config | mean before → after | p95 before → after | over 2667 µs |
+|---|---|---|---|
+| 16c `-T` | 363 → 380 µs | 602 → 617 µs | 0.0% → 0.0% (neutral, in noise) |
+| 24c `-T` | 440 → 391 µs (-11%) | 839 → 778 µs (-7%) | 0.0% → 0.0% (consistent per run) |
+
+Per-run 24c means (baseline → with change): 574 → 525, 365 → 299, 404 → 370 µs. The gain is
+consistent but concentrates at ≥ 2 blocks per thread (i.e. higher client counts), where the
+pool round-trip is what the frame budget hits first.
+
+## 4. The uniform-mix fast path — prototyped, then dropped
 
 The steady-state server sends every client the *same* mix: gains/pans default to 1.0 / 0.5
 and the mix includes every source (there is no self-exclusion in `MixEncodeTransmitData`).
 Only when a client adjusts the mixer (per-receiver gains/pans) or during fade-in do the
 per-receiver mixes differ.
 
-When all per-receiver gain/pan rows and channel formats are uniform, the server can **mix and
-encode once per frame and replay the same encoded packet to every client** instead of doing N
-encodes. With identical mixes this is bit-identical output. The code falls back to the
-current per-destination path when rows differ (mixer adjustments, fade-ins, mixed
-mono/stereo, mixed frame sizes) or with `--delaypan`. This turns the encoding cost from O(N)
-per frame to O(1) in the common case.
+A prototype detected that uniform state (identical per-receiver gain/pan rows, channel count,
+compression type, frame-size conversion blocks, coded byte count, no `--delaypan`) and then
+mixed + OPUS-encoded once per frame, replaying the same encoded packet to every client —
+turning the encode cost from O(N) to O(1) in that case.
 
-**Result (`-T`, 16 clients, 128s, with Steps 1+2+3):**
+Isolated measurement on fork `main` (BASE → with the prototype): 16c single mean 446 → 343 µs,
+p95 682 → 569 µs; 16c `-T` mean 389 → 255 µs, p95 602 → 449 µs. The per-frame uniform check's
+cost in the non-uniform (busy-mixer) case was not isolated-measured — only estimated as small
+(O(n²) float compares, n ≤ 16-24) — so that number is not claimed here. It is **correct**
+(replay is bit-identical while the invariant holds; review additions: compression-type and
+`vecNumFrameSizeConvBlocks` equality gates) but **not proposed**: the uniform steady state does
+not map to real-world usage, because any mixer adjustment or format difference instantly
+drops it to the per-target fallback. **Dropped** as of 2026-09-12; closed draft PR, not part
+of #324/#325.
 
-| | mean | p50 | p95 | p99 | over 2667 µs |
-|---|---|---|---|---|---|
-| baseline | 2052 | 2131 | 2695 | 3780 | 5.3% |
-| after all 3 | **276** | **218** | **576** | **673** | **0.0%** |
-
-Falls back correctly (`--delaypan`): 8c `-T` mean 259 µs, p99 404 µs, no over-budget.
+Note: the `-F` 3.12.5 "929 → 150 µs" figure in §3 Win 1 predates this fast path (it was the
+Step-1 opus64-only measurement); the same change is neutral on fork `main`.
 
 ## 5b. Re-measurement on the fork's `main` (2026-09-12)
 
-The code PR was rebased onto the fork's `main` (HEAD `292506e`, ~300 commits past 3.12.5).
+The code PRs were rebased onto the fork's `main` (HEAD `292506e`, ~300 commits past 3.12.5).
 Fork `main` already carries its own audio-path improvements ("Avoid per-frame deep copy in
 CreateLevelsForAllConChannels", `std::atomic` cross-thread audio params, "Bound panning",
 channel-info mutex work), so its baseline is far lower than the 3.12.5 baseline. The same
-harness was rerun on both fork `main` (BASE) and fork `main` + the three optimizations (OPT):
+harness was rerun on both fork `main` (BASE) and fork `main` + changes (OPT).
+
+Combined run (all three changes at once — the uniform-mix one is since dropped from the PRs,
+but retained here as the CPU-ceiling measurement):
 
 | Config | BASE mean | OPT mean | BASE p95 | OPT p95 | BASE over budget | OPT over budget |
 |---|---|---|---|---|---|---|
@@ -160,11 +187,20 @@ harness was rerun on both fork `main` (BASE) and fork `main` + the three optimiz
 | 8c `-F`, 64 s (1333 µs) | 132 | 135 | 222 | 226 | 0.0% | 0.0% |
 | 8c `-T --delaypan` (2500 µs) | 232 | 253 | 336 | 344 | 0.0% | 0.0% |
 
-Interpretation: the two 16-client configurations improve ~1.4× (single) and ~1.7× (`-T`);
-`-F` and the `--delaypan` fallback are neutral (fork `main` already stays well under 10% of
-the frame budget there). The single-thread 16c OPT run showed 0.1% of frames marginally over
-2667 µs (a few frames, no sustained overruns). The large 3.12.5 gain (5942 → 334 µs) came
-from 3.12.5 lacking the fork `main` improvements — both numbers are consistent.
+Isolated per-change (the numbers that actually back the surviving PRs):
+| PR | change | config | BASE → OPT mean | verdict |
+|---|---|---|---|---|
+| #324 | Opus64 complexity 1 | 8c `-F` | 132 → 134 µs | neutral (noise) |
+| #324 | Opus64 complexity 1 | 16c `-F` | 235 → 244 µs | neutral (noise) |
+| #325 | block cap | 16c `-T` | 363 → 380 µs | neutral (noise) |
+| #325 | block cap | 24c `-T` | 440 → 391 µs (pooled, 3 runs) | consistent -11% |
+| (dropped) | single-mix replay | 16c single | 446 → 343 µs | large, but not proposed |
+
+Interpretation: the large 16-client gains in the combined rows were dominated by the dropped
+uniform-mix fast path. The surviving PRs together buy the 24-client `-T` headroom (#325,
+~-11%) plus a consistency/safety-margin change (#324, neutral on `main`); both stay far under
+the frame budget on this hardware. The combined single-thread 16c OPT run showed 0.1% of
+frames marginally over 2667 µs (a few frames, no sustained overruns).
 
 ## 5. Reproduce
 
@@ -180,6 +216,6 @@ make -j8 ARCHS=arm64
 
 Analysis of a CSV: column 1 = total µs, 2 = decode µs, 3 = mix µs, 4 = connected clients.
 
-> Note: the `//### TEST` timing instrumentation and the encoder/block changes are on top of
-> the 3.12.5 tree; the instrumentation is temporary and must be removed before any upstream
-> patch. See `WORKLOG.md` for the live status.
+> Note: the `//### TEST` timing instrumentation is temporary and must be removed; the
+> encoder/block changes live in PRs #324/#325 on fork `main`. See `WORKLOG.md` for the live
+> status.

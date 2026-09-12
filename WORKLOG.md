@@ -122,25 +122,29 @@ Planned test matrix (each vs. its baseline above):
       **mean 406 µs / p95 594 µs / p99 649 µs / 0.0%** (~5×). 12 blocks of 1-2 encodes each were
       pure pool-sync overhead (`make_shared<packaged_task>` + kernel condvar per task);
       6 blocks of ~3 clients each fix it. CSV: `tmp/perf_run_-T_16c_1789213259.csv`.
-- [x] **Step 3 — mix/encode-once fast path** (`server.cpp` OnTimer). When all per-receiver
-      gain/pan rows + channel format are uniform (the steady state: gains 1.0, pans 0.5, no
-      fade-in, no mixer changes, not `--delaypan`), mix + OPUS-encode ONCE for channel 0 and
-      replay the same encoded packet to every other channel via its own `PrepAndSendPacket`.
-      Falls back to per-channel processing otherwise. Final numbers (see table in Step 3
-      result block below). CSVs: `tmp/perf_run__16c_1789219246.csv`, `-T_16c_1789219335.csv`.
+- [x] ~~**Step 3 — mix/encode-once fast path**~~ (**DROPPED 2026-09-12**, draft PR closed):
+      `server.cpp` OnTimer. When all per-receiver gain/pan rows + channel format are uniform
+      (steady state: gains 1.0, pans 0.5, no fade-in, no mixer changes, not `--delaypan`),
+      mix + OPUS-encode ONCE for channel 0 and replay the same encoded packet to every other
+      channel via its own `PrepAndSendPacket`. Falls back to per-channel processing otherwise.
+      Correct (bit-identical replay, with added compression-type / frame-size-block gates) but
+      **not proposed**: any mixer adjustment or format difference instantly falls back, which
+      does not match real-world usage. CSVs: `tmp/perf_run__16c_1789219246.csv`,
+      `-T_16c_1789219335.csv`.
 - [x] Fallback path smoke test (`--delaypan` forces per-channel path): 8c `-T` mean 259 µs,
       p99 404 µs, no crash, no over-budget. CSV `tmp/perf_run_--delaypan_-T_8c_1789219573.csv`.
 - [x] **#4 architecture doc** written: `docs/server-mt-architecture.md` (persistent-job
       CThreadPool with single completion counter; pipelined common-core single wave as the
       longer-term Option 2; cap+document as fallback).
-- [x] FINAL PATCH: TEST instrumentation removed → `src/server.cpp` now contains ONLY the 3
-      real optimizations (Opus64 complexity, block count, uniform-mix fast path).
-      `git diff > tmp/server_perf.patch` (production-only, +63/−4), verified
-      `git apply --check` against pristine 3.12.5 = clean. Build OK (0 errors), smoke test
-      `-T` 8c: server runs, clients connect, clean exit. ⚠️ For you to do: manual audio
-      correctness test of the patch.
+- [x] FINAL PATCH: TEST instrumentation removed → `src/server.cpp` now contains ONLY the
+      optimizations. NOTE (2026-09-12): of the 3, Step 3 (uniform-mix) is **dropped**; only
+      Step 1 (#324) and Step 2 (#325) are proposed. Historical combined results (§7, §8
+      combined rows) include Step 3 and should be read as the CPU ceiling, not the merged PRs.
 
-## 7. Final comparison (all three optimizations in, EVERY run measured fresh)
+## 7. Final comparison (all three optimizations in, EVERY run measured fresh on 3.12.5)
+
+> Combined-patch 3.12.5 numbers. Step 3 has since been dropped from the PRs, so per-PR
+> isolated results (fork `main`) are in §8.
 
 | Config | mean | p50 | p95 | p99 | over budget |
 |---|---|---|---|---|---|
@@ -170,7 +174,10 @@ so runs are self-cleaning.
 `src/server.cpp` optimized on fork `main` (HEAD `292506e`) after rebase. Same instrumentation
 (branches `perf/instrument-main`, `perf/instrument-opt`; instrument commits NOT pushed).
 Fork `main` baseline is far faster than 3.12.5 (its own perf commits), so absolute gains are
-smaller; measured on both trees with the 4-config harness:
+smaller; measured on both trees with the 4-config harness.
+
+Combined run (all three changes at once; Step 3 / uniform-mix has since been DROPPED from the
+PRs, retained here only as the CPU ceiling):
 
 | Config | BASE mean | OPT mean | BASE p95 | OPT p95 | BASE over | OPT over |
 |---|---|---|---|---|---|---|
@@ -179,8 +186,14 @@ smaller; measured on both trees with the 4-config harness:
 | 8c `-F` | 132 | 135 | 222 | 226 | 0.0% | 0.0% |
 | 8c `-T --delaypan` | 232 | 253 | 336 | 344 | 0.0% | 0.0% |
 
-~1.4x single / ~1.7x `-T` at 16 clients; `-F` and fallback neutral. New CSVs in `tmp/`
-(`perf_run__16c_1789221525.csv` BASE / `...1737.csv` OPT, `-T_16c_1789221563/1778`,
+Isolated per-change (backing the surviving PRs; Steps 1/2 = #324/#325):
+- Step 2 (#325) `-T`: 16c pooled mean 363 → 380 µs (neutral, in noise); **24c** pooled 3 runs
+  mean 440 → 391 µs (-11%), p95 839 → 778, per-run 574→525 / 365→299 / 404→370. CSVs
+  `tmp/perf_run_-T_16c_{1789233608,1789233658}.csv` etc.
+- Step 1 (#324) `-F`: 8c mean 132 → 134 µs, 16c mean 235 → 244 µs (both neutral).
+- Step 3 (dropped) single-mix replay: 16c single 446 → 343 µs, 16c `-T` 389 → 255 µs.
+
+New CSVs in `tmp/` (`perf_run__16c_1789221525.csv` BASE / `...1737.csv` OPT, `-T_16c_1789221563/1778`,
 `-F_8c_1789221615/1817`, `--delaypan_-T_8c_1789221648/1853`).
 Note: the fork-main CLIENT occasionally aborts in `-n` mode with `QWidget: Cannot create a
 QWidget without QApplication` (racy, state-machine refactor); the harness bots are usually
@@ -188,9 +201,10 @@ unaffected — server-side timing is still valid.
 
 ## 6. Code locations cheat-sheet
 
-- `CServer::OnTimer` — `server.cpp:592` (decode under `Mutex` :610-667; uniform-mix detection +
-  levels + socketbuf loop; mix dispatch: bUniformMix→encode once + replay, `-T`→pool blocks,
-  else→serial per-channel; `Stop()` when idle).
+- `CServer::OnTimer` — `server.cpp:592` (decode under `Mutex` :610-667; levels + socketbuf loop;
+  mix dispatch: `-T`→pool blocks, else→serial per-channel; `Stop()` when idle). The
+  uniform-mix detection + encode-once replay (Step 3) was in this function and is now
+  **dropped** from the proposed changes.
 - `CServer::DecodeReceiveData` — `server.cpp:~800` (fetches gains/pans per frame ~839-860,
   opus decode, conv buffers). Inside the mutex.
 - `CServer::MixEncodeTransmitData` — `server.cpp:936` (per-destination mix loop :952-1122,

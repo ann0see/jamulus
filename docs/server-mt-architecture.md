@@ -2,10 +2,11 @@
 
 Companion to `WORKLOG.md` / `docs/SERVER_PERFORMANCE.md`. This document describes the
 *remaining* architectural bottleneck in the `-T` (multithreaded) server path and how to
-remove it. The three optimizations already measured are covered in `SERVER_PERFORMANCE.md`;
-with all of them, the ordinary steady state (uniform mixes — see below) no longer uses the
-thread pool at all, so this redesign matters for the **fallback path** (mixer adjustments,
-fade-ins, mixed mono/stereo or frame sizes, `--delaypan`).
+remove it. The measured optimizations — a thread-pool block-count fix and the Opus64
+complexity change — are covered in `SERVER_PERFORMANCE.md` (see PRs #324/#325); the
+uniform-mix fast path that would bypass the pool entirely was prototyped and **dropped**
+(§4), so the pool remains in the ordinary steady state and this redesign concerns the
+whole `-T` path.
 
 ## Current design (server.cpp)
 
@@ -79,10 +80,10 @@ pipeline requires delaying mix by one production step:
     (gain(d,s)−default)·audio_s`.
   - Only destinations with non-default rows need the correction term (usually none).
 - This merges the decode and mix waves into ONE wave (single join), and is also the natural
-  generalization of the uniform-mix fast path (the common-core term is precisely the "mix
-  once" of the fast path). Microphone-level correctness: floating accumulation order changes
-  are negligible (-120 dB) but for bit-exactness the fast path already guarantees equality;
-  for the corrected destinations the per-dest math must be unchanged.
+  generalization of the "mix once" idea explored in the uniform-mix prototype (since dropped,
+  §4 of `SERVER_PERFORMANCE.md`; the common-core term is precisely its "mix once"). Microphone
+  -level correctness: floating accumulation order changes are negligible (-120 dB) but for
+  bit-exactness the per-dest math for corrected destinations must be unchanged.
 
 Risks: touching the carefully-tuned mixing loop (`MixEncodeTransmitData`,
 `server.cpp:936-1206`), pan/fade handling (`--delaypan` uses a one-frame-delayed buffer
@@ -101,8 +102,9 @@ keeps the per-task sync overhead.
 - The decode-under-`Mutex` window (network thread blocks while the audio thread decodes) is a
   separate, bounded issue (~60–160 µs) and is absorbed by jitter buffering — do not restructure
   it as part of this work.
-- The uniform-mix fast path (Step 3) already bypasses the pool entirely in the common case;
-  verify it remains enabled for `-F` and mixed settings before relying on Approaches 1–2.
+- The uniform-mix fast path (prototyped, then dropped — §4) is NOT available as a fallback;
+  the pool therefore remains the steady-state mix engine and Approaches 1–2 below are the way
+  to cut its sync cost.
 
 ## Suggested implementation order
 
