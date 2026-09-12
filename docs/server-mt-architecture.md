@@ -110,7 +110,8 @@ keeps the per-task sync overhead.
    single wait) while keeping the old `enqueue()` for other callers.
 2. Port the decode wave, then the mix wave, to the new API; keep block sizing.
 3. Benchmark the fallback path (`-T --delaypan`, `-T` with a remote-controlled gain) against
-   `perf_run_--delaypan_-T_8c_1789219573.csv` (mean 259 µs, p99 404 µs currently).
+   `perf_run_--delaypan_-T_8c_1789219573.csv` (mean 259 µs, p99 404 µs on 3.12.5;
+   on fork `main` the fallback measured mean 252 µs, p99 379 µs).
 4. Optionally pursue Approach 2 only if further gains are needed (mix cost is already
    dominated by the fallback's per-dest encodes, which are inherently O(n)).
 

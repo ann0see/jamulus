@@ -145,6 +145,27 @@ per frame to O(1) in the common case.
 
 Falls back correctly (`--delaypan`): 8c `-T` mean 259 µs, p99 404 µs, no over-budget.
 
+## 5b. Re-measurement on the fork's `main` (2026-09-12)
+
+The code PR was rebased onto the fork's `main` (HEAD `292506e`, ~300 commits past 3.12.5).
+Fork `main` already carries its own audio-path improvements ("Avoid per-frame deep copy in
+CreateLevelsForAllConChannels", `std::atomic` cross-thread audio params, "Bound panning",
+channel-info mutex work), so its baseline is far lower than the 3.12.5 baseline. The same
+harness was rerun on both fork `main` (BASE) and fork `main` + the three optimizations (OPT):
+
+| Config | BASE mean | OPT mean | BASE p95 | OPT p95 | BASE over budget | OPT over budget |
+|---|---|---|---|---|---|---|
+| 16c single (2667 µs) | 446 | **310** | 682 | 615 | 0.0% | 0.1% |
+| 16c `-T` (2667 µs) | 389 | **229** | 602 | 417 | 0.0% | 0.0% |
+| 8c `-F`, 64 s (1333 µs) | 132 | 135 | 222 | 226 | 0.0% | 0.0% |
+| 8c `-T --delaypan` (2500 µs) | 232 | 253 | 336 | 344 | 0.0% | 0.0% |
+
+Interpretation: the two 16-client configurations improve ~1.4× (single) and ~1.7× (`-T`);
+`-F` and the `--delaypan` fallback are neutral (fork `main` already stays well under 10% of
+the frame budget there). The single-thread 16c OPT run showed 0.1% of frames marginally over
+2667 µs (a few frames, no sustained overruns). The large 3.12.5 gain (5942 → 334 µs) came
+from 3.12.5 lacking the fork `main` improvements — both numbers are consistent.
+
 ## 5. Reproduce
 
 ```sh

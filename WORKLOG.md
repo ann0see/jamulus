@@ -165,6 +165,27 @@ call bundling `make` + two 35 s runs exceeded the 120 s Bash timeout.
 FIXED in `tmp/perf_harness.sh`: `trap cleanup EXIT` pkills server+clients at run end,
 so runs are self-cleaning.
 
+## 8. Re-measurement on the fork's `main` (2026-09-12)
+
+`src/server.cpp` optimized on fork `main` (HEAD `292506e`) after rebase. Same instrumentation
+(branches `perf/instrument-main`, `perf/instrument-opt`; instrument commits NOT pushed).
+Fork `main` baseline is far faster than 3.12.5 (its own perf commits), so absolute gains are
+smaller; measured on both trees with the 4-config harness:
+
+| Config | BASE mean | OPT mean | BASE p95 | OPT p95 | BASE over | OPT over |
+|---|---|---|---|---|---|---|
+| 16c single | 446 | **310** | 682 | 615 | 0.0% | 0.1% |
+| 16c `-T` | 389 | **229** | 602 | 417 | 0.0% | 0.0% |
+| 8c `-F` | 132 | 135 | 222 | 226 | 0.0% | 0.0% |
+| 8c `-T --delaypan` | 232 | 253 | 336 | 344 | 0.0% | 0.0% |
+
+~1.4x single / ~1.7x `-T` at 16 clients; `-F` and fallback neutral. New CSVs in `tmp/`
+(`perf_run__16c_1789221525.csv` BASE / `...1737.csv` OPT, `-T_16c_1789221563/1778`,
+`-F_8c_1789221615/1817`, `--delaypan_-T_8c_1789221648/1853`).
+Note: the fork-main CLIENT occasionally aborts in `-n` mode with `QWidget: Cannot create a
+QWidget without QApplication` (racy, state-machine refactor); the harness bots are usually
+unaffected — server-side timing is still valid.
+
 ## 6. Code locations cheat-sheet
 
 - `CServer::OnTimer` — `server.cpp:592` (decode under `Mutex` :610-667; uniform-mix detection +
