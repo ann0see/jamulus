@@ -734,6 +734,48 @@ void CServer::OnTimer()
         // calculate levels for all connected clients
         const bool bSendChannelLevels = CreateLevelsForAllConChannels ( iNumClients );
 
+        // Single-mix fast path: if every connected client receives exactly the same mix
+        // (identical gains/pans, same channel count, same compression type and frame size
+        // configuration and coded byte size), we mix and OPUS-encode once per frame and
+        // replay the encoded packet to all clients, instead of building N mixes and doing
+        // N encodes. This is the steady state of a normal server (all gains 1.0, all pans
+        // 0.5, no mixer changes, no fade-ins). Falls back to per-channel processing
+        // otherwise. NOTE: experimentation only - not proposed for production.
+        bool bUniformMix = !bDelayPan;
+        if ( bUniformMix )
+        {
+            const int iRefAudioChannels = vecNumAudioChannels[0];
+            const int iRefCodedBytes    = vecChannels[vecChanIDsCurConChan[0]].GetCeltNumCodedBytes();
+
+            for ( int d = 0; d < iNumClients; d++ )
+            {
+                // also compare the compression type: with double system frames enabled,
+                // CT_OPUS and CT_OPUS64 can both pass the conversion-buffer check but
+                // produce different packet counts/sizes (decoder must not get mismatched
+                // packets from the shared path)
+                if ( ( vecAudioComprType[d] != vecAudioComprType[0] ) ||
+                     ( vecNumAudioChannels[d] != iRefAudioChannels ) ||
+                     ( vecUseDoubleSysFraSizeConvBuf[d] != 0 ) ||
+                     ( vecChannels[vecChanIDsCurConChan[d]].GetCeltNumCodedBytes() != iRefCodedBytes ) )
+                {
+                    bUniformMix = false;
+                    break;
+                }
+            }
+            for ( int d = 1; bUniformMix && ( d < iNumClients ); d++ )
+            {
+                for ( int j = 0; j < iNumClients; j++ )
+                {
+                    if ( ( vecvecfGains[d][j] != vecvecfGains[0][j] ) ||
+                         ( vecvecfPannings[d][j] != vecvecfPannings[0][j] ) )
+                    {
+                        bUniformMix = false;
+                        break;
+                    }
+                }
+            }
+        }
+
         for ( int iChanCnt = 0; iChanCnt < iNumClients; iChanCnt++ )
         {
             // get actual ID of current channel
@@ -759,7 +801,7 @@ void CServer::OnTimer()
             }
 
             // processing without multithreading
-            if ( !bUseMT )
+            if ( !bUseMT && !bUniformMix )
             {
                 // generate a separate mix for each channel, OPUS encode the
                 // audio data and transmit the network packet
@@ -767,8 +809,22 @@ void CServer::OnTimer()
             }
         }
 
+        // processing with a single shared mix for all clients
+        if ( bUniformMix )
+        {
+            // mix, OPUS encode and transmit for the first channel only...
+            MixEncodeTransmitData ( 0, iNumClients );
+
+            // ...and replay the encoded packet to every other channel
+            const int iCeltNumCodedBytes = vecChannels[vecChanIDsCurConChan[0]].GetCeltNumCodedBytes();
+            for ( int iChanCnt = 1; iChanCnt < iNumClients; iChanCnt++ )
+            {
+                vecChannels[vecChanIDsCurConChan[iChanCnt]].PrepAndSendPacket ( &Socket, vecvecbyCodedData[0], iCeltNumCodedBytes );
+            }
+        }
+
         // processing with multithreading
-        if ( bUseMT )
+        else if ( bUseMT )
         {
             for ( int iBlockCnt = 0; iBlockCnt < iNumBlocks; iBlockCnt++ )
             {
