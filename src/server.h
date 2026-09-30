@@ -224,9 +224,21 @@ protected:
 
     static void MixEncodeTransmitDataBlocks ( CServer* pServer, const int iStartChanCnt, const int iStopChanCnt, const int iNumClients );
 
+    static void MixEncodeTransmitDataBlocksReps ( CServer* pServer, const int iStartGrp, const int iStopGrp, const int iNumClients );
+
     void DecodeReceiveData ( const int iChanCnt, const int iNumClients );
 
     void MixEncodeTransmitData ( const int iChanCnt, const int iNumClients );
+
+    // sends the coded audio packet of a channel to the channel itself and, when
+    // the batch-encode optimization is active, to all other channels which share
+    // the identical mix of the representative (see HasSameMix / vecBatchGroupRep)
+    void PrepAndSendToBatchGroup ( const int iChanCnt, const int iNumClients, const int iCeltNumCodedBytes );
+
+    // returns true if the two channels produce bit-identical mixes (same gain/pan
+    // rows, audio format, conversion-block and coded byte count) and therefore
+    // the audio packet encoded for one channel can be sent to the other one
+    bool HasSameMix ( const int iChanACnt, const int iChanBCnt, const int iNumClients );
 
     virtual void customEvent ( QEvent* pEvent );
 
@@ -288,6 +300,22 @@ protected:
     CVector<CVector<int16_t>> vecvecsSendData;
     CVector<CVector<float>>   vecvecfIntermediateProcBuf;
     CVector<CVector<uint8_t>> vecvecbyCodedData;
+
+    // batching: when several clients have bit-identical mix coefficients, encode
+    // once for a representative and replay the coded packet to the others. The
+    // arrays are pre-allocated for the maximum channel count in the constructor
+    // (no allocation allowed in the real-time path).
+    CVector<int> vecBatchGroupRep; // for each connected channel: its group number
+    CVector<int> vecBatchReps;     // for each group: the representative's channel index
+    bool         bBatchActive;     // batch-encode optimization active for this timer frame
+
+    // cache of the last set Opus encoder bitrate (bits per second) for each
+    // encoder instance, indexed by channel ID; used to avoid setting the
+    // bitrate once per frame in the real-time path (see MixEncodeTransmitData)
+    CVector<int> veciLastSetBitRateMono;
+    CVector<int> veciLastSetBitRateStereo;
+    CVector<int> veciLastSetBitRate64Mono;
+    CVector<int> veciLastSetBitRate64Stereo;
 
     // Channel levels
     CVector<uint16_t> vecChannelLevels;

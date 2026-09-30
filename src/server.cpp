@@ -184,6 +184,23 @@ CServer::CServer ( const int          iNewMaxNumChan,
     vecUseDoubleSysFraSizeConvBuf.Init ( iMaxNumChannels );
     vecAudioComprType.Init ( iMaxNumChannels );
 
+    vecBatchGroupRep.Init ( iMaxNumChannels );
+    vecBatchReps.Init ( iMaxNumChannels );
+
+    // initialize the bitrate caches to a value which cannot be a valid bitrate
+    // (-1) so that the first encode of every connection sets the encoder bitrate
+    veciLastSetBitRateMono.Init ( iMaxNumChannels );
+    veciLastSetBitRateStereo.Init ( iMaxNumChannels );
+    veciLastSetBitRate64Mono.Init ( iMaxNumChannels );
+    veciLastSetBitRate64Stereo.Init ( iMaxNumChannels );
+    for ( i = 0; i < iMaxNumChannels; i++ )
+    {
+        veciLastSetBitRateMono[i]     = -1;
+        veciLastSetBitRateStereo[i]   = -1;
+        veciLastSetBitRate64Mono[i]   = -1;
+        veciLastSetBitRate64Stereo[i] = -1;
+    }
+
     for ( i = 0; i < iMaxNumChannels; i++ )
     {
         // init vectors storing information of all channels
@@ -660,6 +677,7 @@ void CServer::OnTimer()
     // some inits
     int  iNumClients          = 0; // init connected client counter
     bool bUseMT               = false;
+    int  iBatchGroupCnt       = 0;     // init number of batch groups
     int  iNumBlocks           = 0;     // init number of blocks for multithreading
     int  iMTBlockSize         = 0;     // init block size for multithreading
     bChannelIsNowDisconnected = false; // note that the flag must be a member function since QtConcurrent::run can only take 5 params
@@ -734,6 +752,59 @@ void CServer::OnTimer()
         // calculate levels for all connected clients
         const bool bSendChannelLevels = CreateLevelsForAllConChannels ( iNumClients );
 
+        // The batch-encode optimization sends the same coded packet to all
+        // channels which receive a bit-identical mix, so the expensive OPUS
+        // encode is only performed once per group (for its representative).
+        // It is only active when the grouping is guaranteed to be correct and
+        // cheap enough for the real-time thread: delay panning must be disabled
+        // (it makes the mix dependent on per-channel state), no channel may use
+        // the double-system-frame-size conversion buffer (its per-channel
+        // timing/accumulation differs), and the number of clients is bounded so
+        // that the O(n^3) worst-case grouping stays well below the frame budget.
+        const int iMaxBatchClients = 32;
+
+        iBatchGroupCnt = 0;
+        bBatchActive   = false;
+
+        if ( !bDelayPan && ( iNumClients > 1 ) && ( iNumClients <= iMaxBatchClients ) )
+        {
+            bBatchActive = true;
+            for ( int iChanCnt = 0; iChanCnt < iNumClients; iChanCnt++ )
+            {
+                if ( vecUseDoubleSysFraSizeConvBuf[iChanCnt] != 0 )
+                {
+                    bBatchActive = false;
+                    break;
+                }
+            }
+        }
+
+        if ( bBatchActive )
+        {
+            // build the groups; the first encountered channel of each group
+            // becomes the representative whose mix/encode is shared with all
+            // other group members
+            for ( int iChanCnt = 0; iChanCnt < iNumClients; iChanCnt++ )
+            {
+                bool bGroupFound = false;
+                for ( int iGrp = 0; iGrp < iBatchGroupCnt; iGrp++ )
+                {
+                    if ( HasSameMix ( iChanCnt, vecBatchReps[iGrp], iNumClients ) )
+                    {
+                        vecBatchGroupRep[iChanCnt] = iGrp;
+                        bGroupFound                = true;
+                        break;
+                    }
+                }
+                if ( !bGroupFound )
+                {
+                    vecBatchGroupRep[iChanCnt]   = iBatchGroupCnt;
+                    vecBatchReps[iBatchGroupCnt] = iChanCnt;
+                    iBatchGroupCnt++;
+                }
+            }
+        }
+
         for ( int iChanCnt = 0; iChanCnt < iNumClients; iChanCnt++ )
         {
             // get actual ID of current channel
@@ -759,7 +830,7 @@ void CServer::OnTimer()
             }
 
             // processing without multithreading
-            if ( !bUseMT )
+            if ( !bUseMT && !bBatchActive )
             {
                 // generate a separate mix for each channel, OPUS encode the
                 // audio data and transmit the network packet
@@ -767,8 +838,39 @@ void CServer::OnTimer()
             }
         }
 
-        // processing with multithreading
-        if ( bUseMT )
+        // processing without multithreading but with batching: only the group
+        // representatives are processed (they transmit to all group members)
+        if ( bBatchActive && !bUseMT )
+        {
+            for ( int iGrp = 0; iGrp < iBatchGroupCnt; iGrp++ )
+            {
+                MixEncodeTransmitData ( vecBatchReps[iGrp], iNumClients );
+            }
+        }
+        // processing with multithreading and batching: the representative of
+        // each group is distributed over the available processor cores
+        else if ( bBatchActive && bUseMT )
+        {
+            iNumBlocks   = std::min ( iBatchGroupCnt, iMaxNumThreads );
+            iMTBlockSize = ( iBatchGroupCnt - 1 ) / iNumBlocks + 1;
+
+            for ( int iBlockCnt = 0; iBlockCnt < iNumBlocks; iBlockCnt++ )
+            {
+                const int iStartGrp = iBlockCnt * iMTBlockSize;
+                const int iStopGrp  = std::min ( ( iBlockCnt + 1 ) * iMTBlockSize - 1, iBatchGroupCnt - 1 );
+
+                Futures.push_back ( pThreadPool->enqueue ( CServer::MixEncodeTransmitDataBlocksReps, this, iStartGrp, iStopGrp, iNumClients ) );
+            }
+
+            // make sure all concurrent run threads have finished when we leave this function
+            for ( auto& fFuture : Futures )
+            {
+                fFuture.wait();
+            }
+            Futures.clear();
+        }
+        // processing with multithreading (without batching)
+        else if ( bUseMT )
         {
             for ( int iBlockCnt = 0; iBlockCnt < iNumBlocks; iBlockCnt++ )
             {
@@ -829,6 +931,48 @@ void CServer::MixEncodeTransmitDataBlocks ( CServer* pServer, const int iStartCh
     {
         pServer->MixEncodeTransmitData ( iChanCnt, iNumClients );
     }
+}
+
+// This is a static method used as a callback for the batch-encode optimization.
+// It iterates over the group representatives (indices into vecBatchReps) instead
+// of over all channels, so that only one mix/encode is done per group.
+void CServer::MixEncodeTransmitDataBlocksReps ( CServer* pServer, const int iStartGrp, const int iStopGrp, const int iNumClients )
+{
+    for ( int iGrp = iStartGrp; iGrp <= iStopGrp; iGrp++ )
+    {
+        pServer->MixEncodeTransmitData ( pServer->vecBatchReps[iGrp], iNumClients );
+    }
+}
+
+bool CServer::HasSameMix ( const int iChanACnt, const int iChanBCnt, const int iNumClients )
+{
+    // the mix depends on the target channel's audio format, on the coded frame
+    // size (i.e. the quality setting) and on the gain/pan coefficients of the
+    // target towards every source channel. If all of them are identical, the
+    // float mix is computed by the exact same deterministic operations, so the
+    // resulting interleaved PCM (and therefore the encoded packet) is identical.
+    if ( ( vecNumAudioChannels[iChanACnt] != vecNumAudioChannels[iChanBCnt] ) || ( vecAudioComprType[iChanACnt] != vecAudioComprType[iChanBCnt] ) )
+    {
+        return false;
+    }
+
+    const int iCeltNumCodedBytesA = vecChannels[vecChanIDsCurConChan[iChanACnt]].GetCeltNumCodedBytes();
+    const int iCeltNumCodedBytesB = vecChannels[vecChanIDsCurConChan[iChanBCnt]].GetCeltNumCodedBytes();
+
+    if ( iCeltNumCodedBytesA != iCeltNumCodedBytesB )
+    {
+        return false;
+    }
+
+    for ( int j = 0; j < iNumClients; j++ )
+    {
+        if ( ( vecvecfGains[iChanACnt][j] != vecvecfGains[iChanBCnt][j] ) || ( vecvecfPannings[iChanACnt][j] != vecvecfPannings[iChanBCnt][j] ) )
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void CServer::DecodeReceiveData ( const int iChanCnt, const int iNumClients )
@@ -1268,12 +1412,43 @@ void CServer::MixEncodeTransmitData ( const int iChanCnt, const int iNumClients 
             // OPUS encoding
             if ( CurOpusEncoder != nullptr )
             {
-                //### TODO: BEGIN ###//
-                // find a better place than this: the setting does not change all the time so for speed
-                // optimization it would be better to set it only if the network frame size is changed
-                opus_custom_encoder_ctl ( CurOpusEncoder,
-                                          OPUS_SET_BITRATE ( CalcBitRateBitsPerSecFromCodedBytes ( iCeltNumCodedBytes, iClientFrameSizeSamples ) ) );
-                //### TODO: END ###//
+                // Set the encoder bitrate only when the network frame size (and
+                // with it the coded byte count) has actually changed, instead of
+                // once per frame. The bitrate is a pure function of (coded bytes,
+                // frame size) which the client only changes via its network
+                // transport properties. The cache is kept per encoder instance to
+                // avoid an unset encoder when mono/stereo selections change.
+                const int iBitRate = CalcBitRateBitsPerSecFromCodedBytes ( iCeltNumCodedBytes, iClientFrameSizeSamples );
+
+                CVector<int>* pveciLastSetBitRate = nullptr;
+                if ( vecAudioComprType[iChanCnt] == CT_OPUS )
+                {
+                    if ( vecNumAudioChannels[iChanCnt] == 1 )
+                    {
+                        pveciLastSetBitRate = &veciLastSetBitRateMono;
+                    }
+                    else
+                    {
+                        pveciLastSetBitRate = &veciLastSetBitRateStereo;
+                    }
+                }
+                else // CT_OPUS64
+                {
+                    if ( vecNumAudioChannels[iChanCnt] == 1 )
+                    {
+                        pveciLastSetBitRate = &veciLastSetBitRate64Mono;
+                    }
+                    else
+                    {
+                        pveciLastSetBitRate = &veciLastSetBitRate64Stereo;
+                    }
+                }
+
+                if ( ( *pveciLastSetBitRate )[iCurChanID] != iBitRate )
+                {
+                    opus_custom_encoder_ctl ( CurOpusEncoder, OPUS_SET_BITRATE ( iBitRate ) );
+                    ( *pveciLastSetBitRate )[iCurChanID] = iBitRate;
+                }
 
                 for ( int iB = 0; iB < vecNumFrameSizeConvBlocks[iChanCnt]; iB++ )
                 {
@@ -1285,8 +1460,9 @@ void CServer::MixEncodeTransmitData ( const int iChanCnt, const int iNumClients 
                                                    &vecvecbyCodedData[iChanCnt][0],
                                                    iCeltNumCodedBytes );
 
-                    // send separate mix to current clients
-                    vecChannels[iCurChanID].PrepAndSendPacket ( &Socket, vecvecbyCodedData[iChanCnt], iCeltNumCodedBytes );
+                    // send separate mix to current clients (including the other
+                    // channels of an identical-mix batch group, if any)
+                    PrepAndSendToBatchGroup ( iChanCnt, iNumClients, iCeltNumCodedBytes );
                 }
             }
         }
@@ -1298,13 +1474,40 @@ void CServer::MixEncodeTransmitData ( const int iChanCnt, const int iNumClients 
 
                 memcpy ( &vecvecbyCodedData[iChanCnt][0], &vecsSendData[iOffset], iCeltNumCodedBytes );
 
-                // send separate mix to current clients
-                vecChannels[iCurChanID].PrepAndSendPacket ( &Socket, vecvecbyCodedData[iChanCnt], iCeltNumCodedBytes );
+                // send separate mix to current clients (including the other
+                // channels of an identical-mix batch group, if any)
+                PrepAndSendToBatchGroup ( iChanCnt, iNumClients, iCeltNumCodedBytes );
             }
         }
     }
 
     Q_UNUSED ( iUnused )
+}
+
+void CServer::PrepAndSendToBatchGroup ( const int iChanCnt, const int iNumClients, const int iCeltNumCodedBytes )
+{
+    // note: this is called on the real-time thread (single-threaded mode) or on
+    // the worker threads of the thread pool (multithreaded mode). In the latter
+    // case every channel belongs to exactly one group and a channel can only be
+    // a group member of one representative, so the per-channel send buffer mutex
+    // (acquired inside PrepAndSendPacket) is never contested between workers.
+
+    // send the mix encoded for this channel to the channel itself
+    vecChannels[vecChanIDsCurConChan[iChanCnt]].PrepAndSendPacket ( &Socket, vecvecbyCodedData[iChanCnt], iCeltNumCodedBytes );
+
+    // when batching is active, send the identical mix to all other group members
+    if ( bBatchActive )
+    {
+        const int iChannelGroup = vecBatchGroupRep[iChanCnt];
+
+        for ( int i = 0; i < iNumClients; i++ )
+        {
+            if ( ( i != iChanCnt ) && ( vecBatchGroupRep[i] == iChannelGroup ) )
+            {
+                vecChannels[vecChanIDsCurConChan[i]].PrepAndSendPacket ( &Socket, vecvecbyCodedData[iChanCnt], iCeltNumCodedBytes );
+            }
+        }
+    }
 }
 
 CVector<CChannelInfo> CServer::CreateChannelList()
