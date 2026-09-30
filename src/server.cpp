@@ -139,6 +139,12 @@ CServer::CServer ( const int          iNewMaxNumChan,
         opus_custom_encoder_ctl ( OpusEncoderMono[i], OPUS_SET_COMPLEXITY ( 1 ) );
         opus_custom_encoder_ctl ( OpusEncoderStereo[i], OPUS_SET_COMPLEXITY ( 1 ) );
 
+        // set encoder low complexity also for the 64 samples frame size encoders
+        // (otherwise they keep the default complexity which makes fastupdate
+        // (--fastupdate) much more expensive than necessary)
+        opus_custom_encoder_ctl ( Opus64EncoderMono[i], OPUS_SET_COMPLEXITY ( 1 ) );
+        opus_custom_encoder_ctl ( Opus64EncoderStereo[i], OPUS_SET_COMPLEXITY ( 1 ) );
+
         // init double-to-normal frame size conversion buffers -----------------
         // use worst case memory initialization to avoid allocating memory in
         // the time-critical thread
