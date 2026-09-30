@@ -235,6 +235,16 @@ win32 {
         SOURCES += src/sound/coreaudio-mac/sound.cpp
     }
 
+    # The Xcode generator (macx-xcode) emits moc/ui/rcc output into the
+    # project root (not under release/), so the default distclean rules
+    # miss them. List them here so `make distclean` removes them after a
+    # spec switch and does not reuse stale generated files. Only apply to
+    # the Makefile generator — the Xcode generator misinterprets the globs
+    # as build inputs.
+    !macx-xcode {
+        QMAKE_DISTCLEAN += moc_*.cpp qrc_*.cpp ui_*.h jamulus_plugin_import.cpp .qmake.stash
+    }
+
 } else:ios {
     CONFIG+=add_ios_ffmpeg_libraries # QTBUG-129651
     QMAKE_ASSET_CATALOGS += src/res/iOSIcons.xcassets
