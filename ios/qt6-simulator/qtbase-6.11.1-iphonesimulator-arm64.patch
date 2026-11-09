@@ -1,0 +1,134 @@
+diff --git a/cmake/QtAutoDetectHelpers.cmake b/cmake/QtAutoDetectHelpers.cmake
+index 3d7db25d..d090dd88 100644
+--- a/cmake/QtAutoDetectHelpers.cmake
++++ b/cmake/QtAutoDetectHelpers.cmake
+@@ -269,7 +269,13 @@ function(qt_auto_detect_apple)
+         elseif(QT_APPLE_SDK STREQUAL "iphoneos")
+             set(osx_architectures "arm64")
+         elseif(QT_APPLE_SDK STREQUAL "iphonesimulator")
+-            set(osx_architectures "x86_64")
++            # arm64-only simulator runtimes (iOS 26 and later) need an arm64
++            # simulator build; allow overriding the historic x86_64 default.
++            if(DEFINED ENV{QT_APPLE_SIMULATOR_ARCHS})
++                set(osx_architectures "$ENV{QT_APPLE_SIMULATOR_ARCHS}")
++            else()
++                set(osx_architectures "x86_64")
++            endif()
+         else()
+             if(NOT DEFINED QT_APPLE_SDK)
+                 message(FATAL_ERROR "Please provide a value for -DQT_APPLE_SDK."
+diff --git a/src/plugins/platforms/ios/qiosglobal.mm b/src/plugins/platforms/ios/qiosglobal.mm
+index c9902012..d618c0d8 100644
+--- a/src/plugins/platforms/ios/qiosglobal.mm
++++ b/src/plugins/platforms/ios/qiosglobal.mm
+@@ -114,12 +114,32 @@ int infoPlistValue(NSString* key, int defaultValue)
+     Q_ASSERT(screen);
+ 
+     const auto *iosScreen = static_cast<const QIOSScreen *>(screen);
++
++    auto viewForScene = [](UIWindowScene *windowScene) -> UIView * {
++        UIWindow *uiWindow = qt_objc_cast<QUIWindow*>(windowScene.keyWindow);
++        if (!uiWindow) {
++            for (UIWindow *win in windowScene.windows) {
++                if (qt_objc_cast<QUIWindow*>(win)) {
++                    uiWindow = win;
++                    break;
++                }
++            }
++        }
++
++        return uiWindow.rootViewController.view;
++    };
++
++    UIWindowScene *applicationScene = nullptr;
++
+     for (UIScene *scene in [qt_apple_sharedApplication().connectedScenes allObjects]) {
+         if (![scene isKindOfClass:UIWindowScene.class])
+             continue;
+ 
+         auto *windowScene = static_cast<UIWindowScene*>(scene);
+ 
++        if (!applicationScene)
++            applicationScene = windowScene;
++
+ #if !defined(Q_OS_VISIONOS)
+         if (windowScene.screen != iosScreen->uiScreen())
+             continue;
+@@ -127,19 +147,17 @@ int infoPlistValue(NSString* key, int defaultValue)
+         Q_UNUSED(iosScreen);
+ #endif
+ 
+-        UIWindow *uiWindow = qt_objc_cast<QUIWindow*>(windowScene.keyWindow);
+-        if (!uiWindow) {
+-            for (UIWindow *win in windowScene.windows) {
+-                if (qt_objc_cast<QUIWindow*>(win)) {
+-                    uiWindow = win;
+-                    break;
+-                }
+-            }
+-        }
+-
+-        return uiWindow.rootViewController.view;
++        return viewForScene(windowScene);
+     }
+ 
++    // No window scene for this screen. This happens when iOS hosts the
++    // application in a scene whose screen is not the one UIScreen reports as
++    // main (observed on foldables), in which case Qt's primary screen has no
++    // scene of its own. Fall back to the application's scene so that Qt can
++    // still present its content, instead of rendering into nothing.
++    if (applicationScene)
++        return viewForScene(applicationScene);
++
+     return nullptr;
+ }
+ 
+diff --git a/src/plugins/platforms/ios/qiosscreen.mm b/src/plugins/platforms/ios/qiosscreen.mm
+index 0a893b7b..2cbbc8ef 100644
+--- a/src/plugins/platforms/ios/qiosscreen.mm
++++ b/src/plugins/platforms/ios/qiosscreen.mm
+@@ -148,7 +148,43 @@ static QString deviceModelIdentifier()
+     QWindowSystemInterface::handleScreenAdded(new QIOSScreen);
+ #else
+     Q_ASSERT([UIScreen.screens containsObject:UIScreen.mainScreen]);
+-    for (UIScreen *screen in UIScreen.screens)
++
++    // The first screen added becomes Qt's primary screen. UIScreen.mainScreen is
++    // not necessarily the display the application is actually shown on (on
++    // foldables the app is hosted in a UIWindowScene whose screen can be a
++    // different, larger display), and the ordering of UIScreen.screens is not
++    // stable between launches. Prefer the screen of a connected window scene,
++    // and fall back to the largest screen, so that Qt's primary screen is the
++    // one the user can actually see.
++    NSMutableArray<UIScreen *> *screens = [[UIScreen.screens mutableCopy] autorelease];
++
++    UIScreen *sceneScreen = nil;
++    for (UIScene *scene in qt_apple_sharedApplication().connectedScenes) {
++        if (![scene isKindOfClass:UIWindowScene.class])
++            continue;
++        sceneScreen = static_cast<UIWindowScene *>(scene).screen;
++        if (sceneScreen)
++            break;
++    }
++
++    if (!sceneScreen && screens.count > 1) {
++        CGFloat largestArea = 0;
++        for (UIScreen *screen in screens) {
++            CGRect bounds = screen.bounds;
++            CGFloat area = bounds.size.width * bounds.size.height;
++            if (area > largestArea) {
++                largestArea = area;
++                sceneScreen = screen;
++            }
++        }
++    }
++
++    if (sceneScreen && [screens containsObject:sceneScreen]) {
++        [screens removeObject:sceneScreen];
++        [screens insertObject:sceneScreen atIndex:0];
++    }
++
++    for (UIScreen *screen in screens)
+         QWindowSystemInterface::handleScreenAdded(new QIOSScreen(screen));
+ #endif
+ }
