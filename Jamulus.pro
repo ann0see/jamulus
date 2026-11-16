@@ -328,6 +328,13 @@ win32 {
         }
 
         DEFINES += WITH_JACK
+
+        linux {
+            DEFINES += HAVE_LINUX_ACTIVITY
+            QT += dbus
+            HEADERS += src/linux/activity.h
+            SOURCES += src/linux/activity.cpp
+        }
     }
 
     isEmpty(PREFIX) {

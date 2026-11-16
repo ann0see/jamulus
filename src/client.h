@@ -65,6 +65,10 @@
 #include "buffer.h"
 #include "signalhandler.h"
 
+#if defined( HAVE_LINUX_ACTIVITY )
+#    include "linux/activity.h"
+#endif
+
 #if defined( _WIN32 ) && !defined( JACK_ON_WINDOWS )
 #    include "sound/asio/sound.h"
 #else
@@ -382,6 +386,10 @@ protected:
     EConnectionState eConnectionState;
 
     void SetConnectionState ( const EConnectionState eNewConnectionState );
+
+#if defined( HAVE_LINUX_ACTIVITY )
+    CActivity Activity;
+#endif
 
     // only one channel is needed for client application
     CChannel  Channel;

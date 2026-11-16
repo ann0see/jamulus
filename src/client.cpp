@@ -1075,6 +1075,10 @@ void CClient::Start()
     SetThreadExecutionState ( ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED );
 #endif
 
+#if defined( HAVE_LINUX_ACTIVITY )
+    Activity.BeginActivity();
+#endif
+
     // the connection is requested now but not yet established: the transition
     // to CS_CONNECTED happens when the server assigns our channel ID
     // (see OnClientIDReceived)
@@ -1136,6 +1140,10 @@ void CClient::Stop()
 #if defined( Q_OS_WINDOWS )
     // Allow hibernation or display dimming if the app is running again (Windows)
     SetThreadExecutionState ( ES_CONTINUOUS );
+#endif
+
+#if defined( HAVE_LINUX_ACTIVITY )
+    Activity.EndActivity();
 #endif
 
     SetConnectionState ( CS_DISCONNECTED );
